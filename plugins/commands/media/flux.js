@@ -1,7 +1,11 @@
-import { join } from "path";
+import { join, dirname } from "path";
 import { createWriteStream } from "fs";
 import { fetchFromEndpoint } from "../../api.js";
+import { fileURLToPath } from 'url';
 import axios from "axios";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const cachePath = join(__dirname, './plugins/commands/cache');
 
 const config = {
     name: "flux",
@@ -35,8 +39,8 @@ async function onCall({ message, args, getLang, data }) {
         if (!response || !response.response) return message.reply(getLang("error"));
 
         const imageUrl = response.response;
-        const cachePath = join(global.cachePath, `generated_flux_${Date.now()}.png`);
-        const writer = createWriteStream(cachePath);
+        const imagePath = join(cachePath, `generated_flux_${Date.now()}.png`);
+        const writer = createWriteStream(imagePath);
 
         const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
         imageResponse.data.pipe(writer);
@@ -44,7 +48,7 @@ async function onCall({ message, args, getLang, data }) {
         writer.on("finish", async () => {
             await message.reply({
                 body: "Here is the generated image:",
-                attachment: global.reader(cachePath)
+                attachment: global.reader(imagePath)
             });
         });
 
