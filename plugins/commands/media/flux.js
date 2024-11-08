@@ -1,15 +1,13 @@
-// Import necessary modules
 import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import apiConfig from './api'; // Importing the API configuration file
+import apiConfig from '../api/api.js';
 
-// Get the current directory path
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const cachePath = './plugins/commands/cache';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const cachePath = path.resolve(__dirname, '../cache');
 
-// Configuration for the command
 const config = {
     name: "flux",
     version: "1.0.0",
@@ -21,7 +19,6 @@ const config = {
     category: "Images",
 };
 
-// Define the function to handle the command
 async function onCall({ message, args }) {
     if (args.length === 0) {
         return message.reply("Please provide a prompt for the image generation.\n\nExample: flux cat");
@@ -31,7 +28,6 @@ async function onCall({ message, args }) {
     message.reply("Generating image...");
 
     try {
-        // Fetch the generated image from the API
         const response = await axios.get(`${apiConfig.flux}?prompt=${encodeURIComponent(prompt)}`, {
             responseType: 'arraybuffer'
         });
@@ -41,15 +37,10 @@ async function onCall({ message, args }) {
         }
 
         const imgBuffer = Buffer.from(response.data, 'binary');
-
-        // Ensure the cache directory exists
         await fs.ensureDir(cachePath);
-
-        // Save the generated image to the cache directory
         const filePath = path.join(cachePath, `flux_${Date.now()}.png`);
         await fs.outputFile(filePath, imgBuffer);
 
-        // Send the generated image as a reply
         await message.reply({
             body: "Here is your generated image:",
             attachment: fs.createReadStream(filePath)
@@ -60,7 +51,6 @@ async function onCall({ message, args }) {
     }
 }
 
-// Export the command configuration and handler function
 export default {
     config,
     onCall
