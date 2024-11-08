@@ -6,6 +6,7 @@ import axios from 'axios';
 import { } from 'dotenv/config';
 import logger from './core/var/modules/logger.js';
 import loadPlugins from './core/var/modules/installDep.js';
+import messageHandler from './messageHandler.js';
 
 import environments from './core/var/modules/environments.get.js';
 
@@ -18,7 +19,7 @@ function upNodeReplit() {
     return new Promise(resolve => {
         execSync('npm i --save-dev node@16 && npm config set prefix=$(pwd)/node_modules/node && export PATH=$(pwd)/node_modules/node/bin:$PATH');
         resolve();
-    })
+    });
 }
 
 (async () => {
@@ -45,7 +46,7 @@ function upNodeReplit() {
                 ]
             },
             "throttle": 3000
-        }
+        };
 
         if (!existsSync(process.cwd() + '/watch.json') || !statSync(process.cwd() + '/watch.json').isFile()) {
             logger.warn("Glitch environment detected. Creating watch.json...");
@@ -108,7 +109,7 @@ async function main() {
             logger.error("XaviaBot has stopped, press Ctrl + C to exit.");
         }
     });
-};
+}
 
 function handleRestartCount() {
     restartCount++;
@@ -116,5 +117,13 @@ function handleRestartCount() {
         restartCount--;
     }, _1_MINUTE);
 }
+
+// Handle incoming messages
+async function handleIncomingMessage(message) {
+    await messageHandler.onCall({ message });
+}
+
+// Example bot event listener (adjust based on the bot framework you're using)
+bot.on('message', handleIncomingMessage);
 
 main();
