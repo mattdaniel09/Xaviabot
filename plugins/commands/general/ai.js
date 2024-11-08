@@ -1,6 +1,6 @@
+import axios from "axios";
 import { join } from "path";
 import { createWriteStream } from "fs";
-import axios from "axios";
 import apiConfig from '../api/api.js';
 
 const config = {
@@ -16,7 +16,6 @@ const config = {
 const langData = {
     "en_US": {
         "missingPrompt": (prefix) => `Please provide a question or prompt for the AI.\n\nEx: ${prefix}ai what is love`,
-        "answering": "Searching...",
         "error": "An error occurred while processing your request.",
     }
 };
@@ -27,12 +26,15 @@ async function onCall({ message, args, getLang, data }) {
     if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const prompt = args.join(" ");
-    message.reply(getLang("answering"));
+    await message.react("🔍");  // Searching emoji reaction
 
     try {
         const response = await axios.get(`${apiConfig.jonel}/api/gpt4o-v2?prompt=${encodeURIComponent(prompt)}`);
 
-        if (!response.data || !response.data.response) return message.reply(getLang("error"));
+        if (!response.data || !response.data.response) {
+            await message.react("❌");  // Error emoji reaction
+            return message.reply(getLang("error"));
+        }
 
         const aiResponse = response.data.response;
 
@@ -48,21 +50,25 @@ async function onCall({ message, args, getLang, data }) {
                 imageResponse.data.pipe(writer);
 
                 writer.on("finish", async () => {
+                    await message.react("✅");  // Success emoji reaction
                     await message.reply({
                         body: "Here is the generated image:",
                         attachment: global.reader(cachePath)
                     });
                 });
 
-                writer.on("error", () => {
+                writer.on("error", async () => {
+                    await message.react("❌");  // Error emoji reaction
                     message.reply(getLang("error"));
                 });
             }
         } else {
+            await message.react("✅");  // Success emoji reaction
             await message.reply(aiResponse);
         }
     } catch (error) {
         console.error("Error in AI command:", error);
+        await message.react("❌");  // Error emoji reaction
         message.reply(getLang("error"));
     }
 }
