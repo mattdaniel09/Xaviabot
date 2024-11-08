@@ -4,9 +4,11 @@ import { pathToFileURL } from 'url';
 
 import _init_global from './_global_info.js';
 import common from './common.js';
+import loadAPIs from './api.js';
 
-function _load_global() {
-    return _init_global();
+async function _load_global() {
+    await _init_global();
+    await loadAPIs(); // Load API configuration
 }
 
 async function _get_modules() {
@@ -47,18 +49,15 @@ function _load_plugins() {
 async function _init_var() {
     try {
         await _load_global();
-
         await _get_modules();
 
         _load_common();
         _load_config();
         _load_lang();
-
         await _load_plugins();
     } catch (error) {
         throw error;
     }
 }
-
 
 export default _init_var;
