@@ -1,67 +1,84 @@
-import axios from 'axios';
-import fs from 'fs-extra';
+import axios from "axios";
+import { join } from "path";
+import fs from "fs-extra";
+import { fileURLToPath } from "url";
 
 const config = {
     name: "video",
-    aliases: ["ytvideo"],
-    version: "1.0",
-    credits: "Churchill",
-    description: "Search and download a YouTube video",
-    usages: "<video-title>",
-    category: "Music",
-    cooldown: 5
+    aliases: ["vid", "ytvideo"],
+    description: "Download a YouTube video based on search term.",
+    usage: "[search term]",
+    cooldown: 5,
+    permissions: [0],
+    credits: "chilli"
 };
 
-async function onCall({ message, args }) {
-    const { threadID, messageID } = message;
-    const query = args.join(" ");
+const langData = {
+    "en_US": {
+        "missingPrompt": (prefix) => `Please provide a video title or search term.\n\nEx: ${prefix}video Bruno Mars`,
+        "error": "An error occurred while processing your request.",
+        "downloading": "🔍 Searching for the video, please wait...",
+        "sending": "✅ Video is ready and being sent..."
+    }
+};
 
-    if (!query) return message.send("❌ | Please provide a video title to search for.");
+// Ensure cache directory exists
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = join(__filename, "..");
+const cacheFolder = join(__dirname, "cache");
+fs.ensureDirSync(cacheFolder);
+
+async function onCall({ message, args, getLang, data }) {
+    const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
+
+    if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
+
+    const query = args.join(" ");
+    await message.react("🔍");  // Searching emoji reaction
+    message.reply(getLang("downloading"));
 
     try {
-        await message.react("🔍");
-        await message.send(`🎶 | Searching for **${query}**... Please wait a moment!`);
-
         const response = await axios.get(`https://betadash-search-download.vercel.app/videov2?search=${encodeURIComponent(query)}`);
-        const { title, downloadUrl, time, views, image, channelName } = response.data;
-
-        if (!downloadUrl) {
-            return message.send("❌ | No results found. Please try another search.");
+        
+        if (!response.data || !response.data.downloadUrl) {
+            await message.react("❌");  // Error emoji reaction
+            return message.reply(getLang("error"));
         }
 
-        const videoInfo = `🎬 **${title}**\n📺 **Channel:** ${channelName}\n⏰ **Duration:** ${time}\n👁️ **Views:** ${views}`;
-        const filePath = "./cache/video.mp4";
+        const { downloadUrl, title } = response.data;
+        const videoPath = join(cacheFolder, `video_${Date.now()}.mp4`);
 
-        const videoStream = await axios({
-            url: downloadUrl,
-            method: 'GET',
-            responseType: 'stream'
-        });
-        videoStream.data.pipe(fs.createWriteStream(filePath));
+        // Download the video
+        const writer = fs.createWriteStream(videoPath);
+        const videoResponse = await axios.get(downloadUrl, { responseType: "stream" });
+        videoResponse.data.pipe(writer);
 
-        videoStream.data.on('end', async () => {
+        writer.on("finish", async () => {
+            await message.react("✅");  // Success emoji reaction
             await message.reply({
-                body: videoInfo + "\n\n✅ | Video sent successfully!",
-                attachment: fs.createReadStream(filePath)
-            }, threadID, messageID);
-
-            fs.unlink(filePath, (err) => {
+                body: `🎬 Here is your video: ${title}`,
+                attachment: global.reader(videoPath)
+            });
+            fs.unlink(videoPath, (err) => {
                 if (err) console.error("Error deleting file:", err);
+                else console.log("File deleted successfully.");
             });
         });
 
-        videoStream.data.on('error', (error) => {
-            console.error("Error downloading video:", error);
-            message.send("❌ | Failed to download the video. Please try again later.");
+        writer.on("error", async () => {
+            await message.react("❌");  // Error emoji reaction
+            message.reply(getLang("error"));
         });
 
     } catch (error) {
-        console.error("Error fetching video:", error);
-        await message.send("⚠️ | An error occurred while processing your request.");
+        console.error("Error in video command:", error);
+        await message.react("❌");  // Error emoji reaction
+        message.reply(getLang("error"));
     }
 }
 
 export default {
     config,
+    langData,
     onCall
 };
