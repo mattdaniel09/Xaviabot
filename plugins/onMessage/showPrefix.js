@@ -1,6 +1,6 @@
 const langData = {
     "en_US": {
-        "prefix.get": "🌐 | The bot's current prefix is [ {prefix} ].\nType {prefix}help to see all commands."
+        "prefix.get": "🌐 | The bot's current prefix is [ {prefix} ].\nType !help to see all commands."
     }
 };
 
