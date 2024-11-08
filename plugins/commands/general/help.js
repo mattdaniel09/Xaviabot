@@ -1,16 +1,19 @@
 const config = {
     name: "help",
+    _name: {
+        "ar_SY": "الاوامر"
+    },
     aliases: ["cmds", "commands"],
     version: "1.0.3",
     description: "Show all commands or command details",
     usage: "[command] (optional)",
     credits: "XaviaTeam"
-};
+}
 
 const langData = {
     "en_US": {
         "help.list": "{list}\n\n⇒ Total: {total} commands\n⇒ Use {syntax} [command] to get more information about a command.",
-        "help.commandNotExists": "Command {command} does not exist.",
+        "help.commandNotExists": "Command {command} does not exists.",
         "help.commandDetails": `
             ⇒ Name: {name}
             ⇒ Aliases: {aliases}
@@ -25,8 +28,43 @@ const langData = {
         "0": "Member",
         "1": "Group Admin",
         "2": "Bot Admin"
+    },
+    "vi_VN": {
+        "help.list": "{list}\n\n⇒ Tổng cộng: {total} lệnh\n⇒ Sử dụng {syntax} [lệnh] để xem thêm thông tin về lệnh.",
+        "help.commandNotExists": "Lệnh {command} không tồn tại.",
+        "help.commandDetails": `
+            ⇒ Tên: {name}
+            ⇒ Tên khác: {aliases}
+            ⇒ Phiên bản: {version}
+            ⇒ Mô tả: {description}
+            ⇒ Cách sử dụng: {usage}
+            ⇒ Quyền hạn: {permissions}
+            ⇒ Thể loại: {category}
+            ⇒ Thời gian chờ: {cooldown}
+            ⇒ Người viết: {credits}
+        `,
+        "0": "Thành viên",
+        "1": "Quản trị nhóm",
+        "2": "Quản trị bot"
+    },
+    "ar_SY": {
+        "help.list": "{list}\n\n⇒ المجموع: {total} الاوامر\n⇒ يستخدم {syntax} [امر] لمزيد من المعلومات حول الأمر.",
+        "help.commandNotExists": "امر {command} غير موجود.",
+        "help.commandDetails": `
+            ⇒ اسم: {name}
+            ⇒ اسم مستعار: {aliases}
+            ⇒ وصف: {description}
+            ⇒ استعمال: {usage}
+            ⇒ الصلاحيات: {permissions}
+            ⇒ فئة: {category}
+            ⇒ وقت الانتظار: {cooldown}
+            ⇒ الاعتمادات: {credits}
+        `,
+        "0": "عضو",
+        "1": "إدارة المجموعة",
+        "2": "ادارة البوت"
     }
-};
+}
 
 function getCommandName(commandName) {
     if (global.plugins.commandsAliases.has(commandName)) return commandName;
@@ -34,7 +72,8 @@ function getCommandName(commandName) {
     for (let [key, value] of global.plugins.commandsAliases) {
         if (value.includes(commandName)) return key;
     }
-    return null;
+
+    return null
 }
 
 async function onCall({ message, args, getLang, userPermissions, prefix }) {
@@ -42,52 +81,32 @@ async function onCall({ message, args, getLang, userPermissions, prefix }) {
     const commandName = args[0]?.toLowerCase();
 
     if (!commandName) {
-        // Paginate commands list
-        let page = parseInt(args[1]) || 1;
-        const itemsPerPage = 10;
-
         let commands = {};
-        const language = global.config.LANGUAGE || 'en_US';
-        
+        const language = data?.thread?.data?.language || global.config.LANGUAGE || 'en_US';
         for (const [key, value] of commandsConfig.entries()) {
-            if (value.isHidden) continue;
-            if (value.isAbsolute && !global.config.ABSOLUTES.includes(message.senderID)) continue;
+            if (!!value.isHidden) continue;
+            if (!!value.isAbsolute ? !global.config?.ABSOLUTES.some(e => e == message.senderID) : false) continue;
+            if (!value.hasOwnProperty("permissions")) value.permissions = [0, 1, 2];
             if (!value.permissions.some(p => userPermissions.includes(p))) continue;
-            if (!commands[value.category]) commands[value.category] = [];
+            if (!commands.hasOwnProperty(value.category)) commands[value.category] = [];
             commands[value.category].push(value._name && value._name[language] ? value._name[language] : key);
         }
 
-        const categories = Object.keys(commands);
-        const totalCommands = categories.reduce((sum, cat) => sum + commands[cat].length, 0);
-        const totalPages = Math.ceil(totalCommands / itemsPerPage);
-
-        if (page < 1 || page > totalPages) page = 1;
-
-        const start = (page - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-
-        const list = categories
-            .map(category => {
-                const cmds = commands[category].slice(start, end).join(", ");
-                return cmds ? `⌈ ${category.toUpperCase()} ⌋\n${cmds}` : '';
-            })
-            .filter(Boolean)
+        let list = Object.keys(commands)
+            .map(category => `⌈ ${category.toUpperCase()} ⌋\n${commands[category].join(", ")}`)
             .join("\n\n");
 
         message.reply(getLang("help.list", {
-            total: totalCommands,
+            total: Object.values(commands).map(e => e.length).reduce((a, b) => a + b, 0),
             list,
-            syntax: `${prefix}help`,
-            page,
-            totalPages
+            syntax: message.args[0].toLowerCase()
         }));
     } else {
-        // Show details of a specific command
-        const command = commandsConfig.get(getCommandName(commandName));
+        const command = commandsConfig.get(getCommandName(commandName, commandsConfig));
         if (!command) return message.reply(getLang("help.commandNotExists", { command: commandName }));
 
-        const isHidden = command.isHidden;
-        const isUserValid = !command.isAbsolute || global.config.ABSOLUTES.includes(message.senderID);
+        const isHidden = !!command.isHidden;
+        const isUserValid = !!command.isAbsolute ? global.config?.ABSOLUTES.some(e => e == message.senderID) : true;
         const isPermissionValid = command.permissions.some(p => userPermissions.includes(p));
         if (isHidden || !isUserValid || !isPermissionValid)
             return message.reply(getLang("help.commandNotExists", { command: commandName }));
@@ -110,4 +129,4 @@ export default {
     config,
     langData,
     onCall
-};
+}
