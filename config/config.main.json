@@ -24,13 +24,5 @@
     "NAME": "chilli bot",
     "PREFIX": "!",
     "timezone": "Asia/Manila",
-    "REFRESH": "43200000",
-    "global": {
-        "xavia": {
-            "ENDPOINT": "https://joshweb.click"
-        },
-        "jonel": {
-            "ENDPOINT": "https://ccprojectapis.ddns.net"
-        }
-    }
+    "REFRESH": "43200000"
 }
