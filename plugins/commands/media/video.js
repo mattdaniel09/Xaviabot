@@ -9,34 +9,48 @@ const cachePath = path.resolve(__dirname, '../cache');
 
 const config = {
     name: "video",
+    version: "1.0.0",
+    permissions: 0,
+    credits: "chill",
     description: "Search and download a video based on a keyword.",
-    usage: "video <keyword>\nExample: video apt",
-    author: "chilli",
+    usage: "video <keyword>\nExample: video funny cat",
+    cooldown: 3,
+    category: "Media",
 };
 
 async function onCall({ kupal, mansi }) {
-    if (!mansi || mansi.length === 0) {
-        return kupal.reply('Please provide a keyword to search for a video.\n\nExample: video apt');
+    if (mansi.length === 0) {
+        return kupal.sendMessage(
+            `Please provide a keyword to search for a video.\n\nExample: video funny cat`,
+            kupal.threadID,
+            kupal.messageID
+        );
     }
 
-    const chilli = mansi.join(' ');
-    kupal.reply(`Searching for video: "${chilli}"... Please wait.`);
+    const keyword = mansi.join(' ');
+    kupal.sendMessage(`Searching for video: "${keyword}"... Please wait.`, kupal.threadID, kupal.messageID);
 
     try {
-        const apiUrl = `https://betadash-search-download.vercel.app/videov2?search=${encodeURIComponent(chilli)}`;
+        const apiUrl = `https://betadash-search-download.vercel.app/videov2?search=${encodeURIComponent(keyword)}`;
         const response = await axios.get(apiUrl);
         const { title, downloadUrl, time, views, channelName } = response.data;
 
         if (!downloadUrl) {
-            return kupal.reply(`No video found for the keyword "${chilli}". Please try another keyword.`);
+            return kupal.sendMessage(
+                `No video found for the keyword "${keyword}". Please try another keyword.`,
+                kupal.threadID,
+                kupal.messageID
+            );
         }
 
         const videoDetails = `**Video Found!**\n\nTitle: ${title}\nChannel: ${channelName}\nViews: ${views}\nDuration: ${time}`;
-        kupal.reply(videoDetails);
+        kupal.sendMessage(videoDetails, kupal.threadID, kupal.messageID);
 
+        // Ensure the cache directory exists
         await fs.ensureDir(cachePath);
         const videoPath = path.join(cachePath, `video_${Date.now()}.mp4`);
 
+        // Download the video
         const videoResponse = await axios.get(downloadUrl, { responseType: 'stream' });
         await new Promise((resolve, reject) => {
             const writer = fs.createWriteStream(videoPath);
@@ -45,15 +59,26 @@ async function onCall({ kupal, mansi }) {
             writer.on('error', reject);
         });
 
-        await kupal.reply({
-            attachment: fs.createReadStream(videoPath),
-            body: `Here is the video based on your search "${chilli}":\n\nTitle: ${title}\nChannel: ${channelName}\nViews: ${views}\nDuration: ${time}`
-        });
+        // Send the video as an attachment
+        await kupal.sendMessage(
+            {
+                body: `Here is your requested video: ${title}\nChannel: ${channelName}\nDuration: ${time}`,
+                attachment: fs.createReadStream(videoPath)
+            },
+            kupal.threadID,
+            kupal.messageID
+        );
 
-        fs.remove(videoPath);
+        // Clean up the cache by removing the downloaded video
+        await fs.remove(videoPath);
+
     } catch (error) {
         console.error("Error in video command:", error);
-        kupal.reply("An error occurred while searching for the video. Please try again.");
+        kupal.sendMessage(
+            "An error occurred while searching for the video. Please try again.",
+            kupal.threadID,
+            kupal.messageID
+        );
     }
 }
 
