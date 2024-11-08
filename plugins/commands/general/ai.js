@@ -1,7 +1,7 @@
 import { join } from "path";
 import { createWriteStream } from "fs";
-import { fetchFromEndpoint } from "../../api.js";  // Import from api.js
-import axios from "axios"; // Import axios if needed
+import { fetchFromEndpoint } from "../../api.js";
+import axios from "axios";
 
 const config = {
     name: "ai",
@@ -16,7 +16,7 @@ const config = {
 const langData = {
     "en_US": {
         "missingPrompt": (prefix) => `Please provide a question or prompt for the AI.\n\nEx: ${prefix}ai what is love`,
-        "answering": "𝘚𝘦𝘢𝘳𝘤𝘩𝘪𝘯𝘨...",
+        "answering": "Searching...",
         "error": "An error occurred while processing your request.",
     }
 };
@@ -24,20 +24,18 @@ const langData = {
 async function onCall({ message, args, getLang, data }) {
     const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
 
-    if (args.length === 0) return message.send(getLang("missingPrompt")(prefix)); // Call the function to get the message
+    if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const prompt = args.join(" ");
-    message.send(getLang("answering")); // Send answering indicator, no delete
+    message.reply(getLang("answering"));
 
     try {
-        // Use fetchFromEndpoint to get data from Jonel's endpoint
         const response = await fetchFromEndpoint("jonel", "/api/gpt4o-v2", { prompt });
 
-        if (!response || !response.response) return message.send(getLang("error"));
+        if (!response || !response.response) return message.reply(getLang("error"));
 
         const aiResponse = response.response;
 
-        // Handle image response
         if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
             const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
 
@@ -50,23 +48,22 @@ async function onCall({ message, args, getLang, data }) {
                 imageResponse.data.pipe(writer);
 
                 writer.on("finish", async () => {
-                    await message.send({
+                    await message.reply({
                         body: "Here is the generated image:",
                         attachment: global.reader(cachePath)
                     });
                 });
 
                 writer.on("error", () => {
-                    message.send(getLang("error"));
+                    message.reply(getLang("error"));
                 });
             }
         } else {
-            // Handle text response
-            await message.send(aiResponse);
+            await message.reply(aiResponse);
         }
     } catch (error) {
         console.error("Error in AI command:", error);
-        message.send(getLang("error"));
+        message.reply(getLang("error"));
     }
 }
 
