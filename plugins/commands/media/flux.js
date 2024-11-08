@@ -1,11 +1,15 @@
+// Import necessary modules
 import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import apiConfig from './api'; // Importing the API configuration file
 
+// Get the current directory path
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cachePath = './plugins/commands/cache';
 
+// Configuration for the command
 const config = {
     name: "flux",
     version: "1.0.0",
@@ -17,6 +21,7 @@ const config = {
     category: "Images",
 };
 
+// Define the function to handle the command
 async function onCall({ message, args }) {
     if (args.length === 0) {
         return message.reply("Please provide a prompt for the image generation.\n\nExample: flux cat");
@@ -27,7 +32,7 @@ async function onCall({ message, args }) {
 
     try {
         // Fetch the generated image from the API
-        const response = await axios.get(`https://ccprojectapis.ddns.net/api/flux?prompt=${encodeURIComponent(prompt)}`, {
+        const response = await axios.get(`${apiConfig.flux}?prompt=${encodeURIComponent(prompt)}`, {
             responseType: 'arraybuffer'
         });
 
@@ -55,6 +60,7 @@ async function onCall({ message, args }) {
     }
 }
 
+// Export the command configuration and handler function
 export default {
     config,
     onCall
