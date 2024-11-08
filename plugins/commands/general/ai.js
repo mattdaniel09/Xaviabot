@@ -5,7 +5,7 @@ import { createWriteStream } from "fs";
 const config = {
     name: "ai",
     aliases: ["chat", "generate"],
-    description: "Interact with GPT-4 API and generate text or images based on prompts.",
+    description: "Interact with GPT-4 API to generate text or images based on prompts.",
     usage: "[prompt]",
     cooldown: 3,
     permissions: [0],
@@ -14,22 +14,23 @@ const config = {
 
 const langData = {
     "en_US": {
-        "missingPrompt": "Please provide a prompt to interact with the AI.",
+        "missingPrompt": "Please provide a question or prompt for the AI.",
         "error": "An error occurred while processing your request.",
     }
 };
 
-async function onCall({ message, args }) {
-    if (args.length === 0) return;
+async function onCall({ message, args, getLang }) {
+    if (args.length === 0) return message.send(getLang("missingPrompt"));
 
     const prompt = args.join(" ");
 
     try {
-        const response = await axios.get(`${global.xva_api.jonel}/api/gpt4o-v2`, {
+        // Directly use the specified endpoint without relying on global variables
+        const response = await axios.get("https://ccprojectapis.ddns.net/api/gpt4o-v2", {
             params: { prompt }
         });
 
-        if (!response || !response.data || !response.data.response) return;
+        if (!response || !response.data || !response.data.response) return message.send(getLang("error"));
 
         const aiResponse = response.data.response;
 
@@ -52,7 +53,9 @@ async function onCall({ message, args }) {
                     });
                 });
 
-                writer.on("error", () => {});
+                writer.on("error", () => {
+                    message.send(getLang("error"));
+                });
             }
         } else {
             // Handle text response
@@ -60,6 +63,7 @@ async function onCall({ message, args }) {
         }
     } catch (error) {
         console.error("Error in AI command:", error);
+        message.send(getLang("error"));
     }
 }
 
