@@ -3,10 +3,9 @@ import { spawn, execSync } from 'child_process';
 import semver from 'semver';
 import axios from 'axios';
 
-import {} from 'dotenv/config';
+import { } from 'dotenv/config';
 import logger from './core/var/modules/logger.js';
 import loadPlugins from './core/var/modules/installDep.js';
-import messageHandler from './messageHandler.js';
 
 import environments from './core/var/modules/environments.get.js';
 
@@ -19,7 +18,7 @@ function upNodeReplit() {
     return new Promise(resolve => {
         execSync('npm i --save-dev node@16 && npm config set prefix=$(pwd)/node_modules/node && export PATH=$(pwd)/node_modules/node/bin:$PATH');
         resolve();
-    });
+    })
 }
 
 (async () => {
@@ -46,7 +45,7 @@ function upNodeReplit() {
                 ]
             },
             "throttle": 3000
-        };
+        }
 
         if (!existsSync(process.cwd() + '/watch.json') || !statSync(process.cwd() + '/watch.json').isFile()) {
             logger.warn("Glitch environment detected. Creating watch.json...");
@@ -61,6 +60,7 @@ function upNodeReplit() {
 })();
 
 // End
+
 
 // CHECK UPDATE
 async function checkUpdate() {
@@ -80,6 +80,7 @@ async function checkUpdate() {
         logger.error('Failed to check for updates.');
     }
 }
+
 
 // Child handler
 const _1_MINUTE = 60000;
@@ -107,18 +108,13 @@ async function main() {
             logger.error("XaviaBot has stopped, press Ctrl + C to exit.");
         }
     });
-}
+};
 
 function handleRestartCount() {
     restartCount++;
     setTimeout(() => {
         restartCount--;
     }, _1_MINUTE);
-}
-
-// Handle incoming messages (Define a function to use it elsewhere in your code)
-async function handleIncomingMessage(message) {
-    await messageHandler.onCall({ message });
 }
 
 main();
