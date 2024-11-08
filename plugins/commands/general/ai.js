@@ -1,59 +1,74 @@
-import axios from 'axios';
-import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import apiConfig from '../api/api.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const cachePath = path.resolve(__dirname, '../cache');
+import { join } from "path";
+import { createWriteStream } from "fs";
+import axios from "axios";
+import apiConfig from '../../api/api.js';  // Ensure apiConfig contains the jonel endpoint
 
 const config = {
-    name: "flux",
-    version: "1.0.0",
-    permissions: 0,
-    credits: "chill",
-    description: "Generate an image with a prompt using Jonel's API",
+    name: "ai",
+    aliases: ["chat", "generate"],
+    description: "Interact with GPT-4 API to generate text or images based on prompts.",
     usage: "[prompt]",
     cooldown: 3,
-    category: "Images",
+    permissions: [0],
+    credits: "chilli"
 };
 
-async function onCall({ message, args, data }) {
-    const prefix = data?.thread?.data?.prefix || global.config.PREFIX; // Get the prefix from thread data or global config
-
-    if (args.length === 0) {
-        return message.reply(`Please provide a prompt for the image generation.\n\nExample: ${prefix}flux cat`);
+const langData = {
+    "en_US": {
+        "missingPrompt": (prefix) => `Please provide a question or prompt for the AI.\n\nEx: ${prefix}ai what is love`,
+        "answering": "Searching...",
+        "error": "An error occurred while processing your request.",
     }
+};
+
+async function onCall({ message, args, getLang, data }) {
+    const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
+
+    if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const prompt = args.join(" ");
-    message.reply("Generating image...");
+    message.reply(getLang("answering"));
 
     try {
-        const response = await axios.get(`${apiConfig.jonel}/api/flux?prompt=${encodeURIComponent(prompt)}`, {
-            responseType: 'arraybuffer'
-        });
+        const response = await axios.get(`${apiConfig.jonel}/api/gpt4o-v2?prompt=${encodeURIComponent(prompt)}`);
 
-        if (response.status !== 200) {
-            return message.reply("An error occurred while generating the image.");
+        if (!response.data || !response.data.response) return message.reply(getLang("error"));
+
+        const aiResponse = response.data.response;
+
+        if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
+            const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
+
+            if (imageUrlMatch && imageUrlMatch[1]) {
+                const imageUrl = imageUrlMatch[1];
+                const cachePath = join(global.cachePath, `generated_${Date.now()}.png`);
+                const writer = createWriteStream(cachePath);
+
+                const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
+                imageResponse.data.pipe(writer);
+
+                writer.on("finish", async () => {
+                    await message.reply({
+                        body: "Here is the generated image:",
+                        attachment: global.reader(cachePath)
+                    });
+                });
+
+                writer.on("error", () => {
+                    message.reply(getLang("error"));
+                });
+            }
+        } else {
+            await message.reply(aiResponse);
         }
-
-        const imgBuffer = Buffer.from(response.data, 'binary');
-        await fs.ensureDir(cachePath);
-        const filePath = path.join(cachePath, `flux_${Date.now()}.png`);
-        await fs.outputFile(filePath, imgBuffer);
-
-        await message.reply({
-            body: "Here is your generated image:",
-            attachment: fs.createReadStream(filePath)
-        });
     } catch (error) {
-        console.error("Error in flux command:", error);
-        message.reply("An error occurred while generating the image.");
+        console.error("Error in AI command:", error);
+        message.reply(getLang("error"));
     }
 }
 
 export default {
     config,
+    langData,
     onCall
 };
