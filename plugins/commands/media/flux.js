@@ -19,9 +19,11 @@ const config = {
     category: "Images",
 };
 
-async function onCall({ message, args }) {
+async function onCall({ message, args, data }) {
+    const prefix = data?.thread?.data?.prefix || global.config.PREFIX; // Get the prefix from thread data or global config
+
     if (args.length === 0) {
-        return message.reply("Please provide a prompt for the image generation.\n\nExample: flux cat");
+        return message.reply(`Please provide a prompt for the image generation.\n\nExample: ${prefix}flux cat`);
     }
 
     const prompt = args.join(" ");
