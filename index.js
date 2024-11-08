@@ -3,7 +3,7 @@ import { spawn, execSync } from 'child_process';
 import semver from 'semver';
 import axios from 'axios';
 
-import { } from 'dotenv/config';
+import {} from 'dotenv/config';
 import logger from './core/var/modules/logger.js';
 import loadPlugins from './core/var/modules/installDep.js';
 import messageHandler from './messageHandler.js';
@@ -62,7 +62,6 @@ function upNodeReplit() {
 
 // End
 
-
 // CHECK UPDATE
 async function checkUpdate() {
     logger.custom("Checking for updates...", "UPDATE");
@@ -81,7 +80,6 @@ async function checkUpdate() {
         logger.error('Failed to check for updates.');
     }
 }
-
 
 // Child handler
 const _1_MINUTE = 60000;
@@ -118,12 +116,9 @@ function handleRestartCount() {
     }, _1_MINUTE);
 }
 
-// Handle incoming messages
+// Handle incoming messages (Define a function to use it elsewhere in your code)
 async function handleIncomingMessage(message) {
     await messageHandler.onCall({ message });
 }
-
-// Example bot event listener (adjust based on the bot framework you're using)
-bot.on('message', handleIncomingMessage);
 
 main();
