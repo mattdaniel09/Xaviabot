@@ -22,7 +22,7 @@
         "100087212564100"
     ],
     "NAME": "chilli bot",
-    "PREFIX": "",
+    "PREFIX": "!",
     "timezone": "Asia/Manila",
     "REFRESH": "43200000"
 }
