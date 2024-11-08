@@ -64,7 +64,6 @@ function _change_prototype_DATA(data) {
 
     return data;
 }
-
 async function getDomains() {
     try {
         const response = await axios.get(
@@ -102,11 +101,7 @@ async function _init_global() {
     if (!global.updateMONGO) global.updateMONGO = _global.updateMONGO;
 
     global.controllers = _global.controllers;
-    global.xva_api = {
-        jonel: "https://ccprojectapis.ddns.net",  // Added Jonel's API as a global variable
-        xP22: domains.xP22,
-        xP21: domains.xP21
-    };
+    global.xva_api = domains.xP22;
     global.xva_ppi = domains.xP21;
     global.server = _global.server;
     global.refreshState = _global.refreshState;
