@@ -1,6 +1,6 @@
 const langData = {
     "en_US": {
-        "prefix.get": (prefix) => `🌐 | The bot's current prefix is [ (${prefix}) ].\nType (${prefix})help to see all commands.`,
+        "prefix.get": (prefix) => `🌐 | The bot's current prefix is [ (${prefix}) ].\nType !help to see all commands.`,
         "noPrefix": "🌐 | No prefix is currently set. You can use commands without a prefix."
     }
 };
