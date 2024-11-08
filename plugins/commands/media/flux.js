@@ -28,7 +28,7 @@ async function onCall({ message, args }) {
     message.reply("Generating image...");
 
     try {
-        const response = await axios.get(`${apiConfig.flux}/api/flux?prompt=${encodeURIComponent(prompt)}`, {
+        const response = await axios.get(`${apiConfig.jonel}/api/flux?prompt=${encodeURIComponent(prompt)}`, {
             responseType: 'arraybuffer'
         });
 
