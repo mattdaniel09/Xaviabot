@@ -1,6 +1,7 @@
-import axios from "axios";
 import { join } from "path";
 import { createWriteStream } from "fs";
+import { fetchFromEndpoint } from "../../api.js";  // Import from api.js
+import axios from "axios"; // Import axios if needed
 
 const config = {
     name: "ai",
@@ -9,30 +10,32 @@ const config = {
     usage: "[prompt]",
     cooldown: 3,
     permissions: [0],
-    credits: "churchill"
+    credits: "chilli"
 };
 
 const langData = {
     "en_US": {
-        "missingPrompt": "Please provide a question or prompt for the AI.",
+        "missingPrompt": (prefix) => `Please provide a question or prompt for the AI.\n\nEx: ${prefix}ai what is love`,
+        "answering": "AI is typing...",
         "error": "An error occurred while processing your request.",
     }
 };
 
-async function onCall({ message, args, getLang }) {
-    if (args.length === 0) return message.send(getLang("missingPrompt"));
+async function onCall({ message, args, getLang, data }) {
+    const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
+
+    if (args.length === 0) return message.send(getLang("missingPrompt", prefix));
 
     const prompt = args.join(" ");
+    const answeringMessage = await message.send(getLang("answering")); // Send answering indicator
 
     try {
-        // Directly use the specified endpoint without relying on global variables
-        const response = await axios.get("https://ccprojectapis.ddns.net/api/gpt4o-v2", {
-            params: { prompt }
-        });
+        // Use fetchFromEndpoint to get data from Jonel's endpoint
+        const response = await fetchFromEndpoint("jonel", "/api/gpt4o-v2", { prompt });
 
-        if (!response || !response.data || !response.data.response) return message.send(getLang("error"));
+        if (!response || !response.response) return message.send(getLang("error"));
 
-        const aiResponse = response.data.response;
+        const aiResponse = response.response;
 
         // Handle image response
         if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
@@ -47,6 +50,7 @@ async function onCall({ message, args, getLang }) {
                 imageResponse.data.pipe(writer);
 
                 writer.on("finish", async () => {
+                    await answeringMessage.delete(); // Remove answering indicator
                     await message.send({
                         body: "Here is the generated image:",
                         attachment: global.reader(cachePath)
@@ -54,14 +58,17 @@ async function onCall({ message, args, getLang }) {
                 });
 
                 writer.on("error", () => {
+                    answeringMessage.delete(); // Remove answering indicator
                     message.send(getLang("error"));
                 });
             }
         } else {
             // Handle text response
+            answeringMessage.delete(); // Remove answering indicator
             message.send(aiResponse);
         }
     } catch (error) {
+        answeringMessage.delete(); // Remove answering indicator
         console.error("Error in AI command:", error);
         message.send(getLang("error"));
     }
