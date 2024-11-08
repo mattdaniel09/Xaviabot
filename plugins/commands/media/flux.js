@@ -1,61 +1,64 @@
-import axios from 'axios';
-import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const cachePath = './plugins/commands/cache';
+import { join } from "path";
+import { createWriteStream } from "fs";
+import { fetchFromEndpoint } from "../../api.js";
+import axios from "axios";
 
 const config = {
     name: "flux",
-    version: "1.0.0",
-    permissions: 0,
-    credits: "Jonel's API",
-    description: "Generate an image with a prompt using Jonel's API",
+    aliases: ["imagegen", "img"],
+    description: "Generate an image based on the prompt provided.",
     usage: "[prompt]",
-    cooldown: 3,
-    category: "Images",
+    cooldown: 5,
+    permissions: [0],
+    credits: "jonel"
 };
 
-async function onCall({ message, args }) {
-    if (args.length === 0) {
-        return message.reply("Please provide a prompt for the image generation.\n\nExample: flux cat");
+const langData = {
+    "en_US": {
+        "missingPrompt": (prefix) => `Please provide a prompt for the image generation.\n\nEx: ${prefix}flux cat`,
+        "answering": "Generating the image...",
+        "error": "An error occurred while generating the image.",
     }
+};
+
+async function onCall({ message, args, getLang, data }) {
+    const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
+
+    if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const prompt = args.join(" ");
-    message.reply("Generating image...");
+    message.reply(getLang("answering"));
 
     try {
-        // Fetch the generated image from the API
-        const response = await axios.get(`https://ccprojectapis.ddns.net/api/flux?prompt=${encodeURIComponent(prompt)}`, {
-            responseType: 'arraybuffer'
+        const response = await fetchFromEndpoint("jonel", "/api/flux", { prompt });
+
+        if (!response || !response.response) return message.reply(getLang("error"));
+
+        const imageUrl = response.response;
+        const cachePath = join(global.cachePath, `generated_flux_${Date.now()}.png`);
+        const writer = createWriteStream(cachePath);
+
+        const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
+        imageResponse.data.pipe(writer);
+
+        writer.on("finish", async () => {
+            await message.reply({
+                body: "Here is the generated image:",
+                attachment: global.reader(cachePath)
+            });
         });
 
-        if (response.status !== 200) {
-            return message.reply("An error occurred while generating the image.");
-        }
-
-        const imgBuffer = Buffer.from(response.data, 'binary');
-
-        // Ensure the cache directory exists
-        await fs.ensureDir(cachePath);
-
-        // Save the generated image to the cache directory
-        const filePath = path.join(cachePath, `flux_${Date.now()}.png`);
-        await fs.outputFile(filePath, imgBuffer);
-
-        // Send the generated image as a reply
-        await message.reply({
-            body: "Here is your generated image:",
-            attachment: fs.createReadStream(filePath)
+        writer.on("error", () => {
+            message.reply(getLang("error"));
         });
     } catch (error) {
         console.error("Error in flux command:", error);
-        message.reply("An error occurred while generating the image.");
+        message.reply(getLang("error"));
     }
 }
 
 export default {
     config,
+    langData,
     onCall
 };
