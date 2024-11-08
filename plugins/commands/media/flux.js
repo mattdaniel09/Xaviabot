@@ -10,7 +10,7 @@ const config = {
     usage: "[prompt]",
     cooldown: 5,
     permissions: [0],
-    credits: "jonel"
+    credits: "chill"
 };
 
 const langData = {
