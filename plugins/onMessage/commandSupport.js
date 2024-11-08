@@ -3,7 +3,6 @@ import path from 'path';
 
 const commandRootDir = path.resolve('./plugins/commands');
 
-// Function to fetch command files organized by category
 const fetchCommandFiles = () => {
     const commandFiles = [];
 
@@ -28,7 +27,6 @@ const fetchCommandFiles = () => {
     return commandFiles;
 };
 
-// Function to dynamically load each command module
 const loadCommand = async (filePath) => {
     try {
         const { default: commandModule } = await import(filePath);
@@ -44,33 +42,29 @@ const loadCommand = async (filePath) => {
     }
 };
 
-// Main handler function to execute commands based on incoming messages
 async function onCall({ message }) {
     const input = message.body.trim().toLowerCase();
-    const commandFiles = fetchCommandFiles();
 
-    // Iterate over all commands to find a match
+    const commandFiles = fetchCommandFiles();
     for (const { commands } of commandFiles) {
         for (const filePath of commands) {
             const commandData = await loadCommand(filePath);
             if (commandData && input.startsWith(commandData.name)) {
                 const { commandModule, name } = commandData;
 
-                // Define arguments and prefix
-                const args = input.slice(name.length).trim().split(" ");
-                const prefix = message.thread?.data?.prefix || global.config.PREFIX || "";
+                if (commandModule?.config && commandModule.onCall) {
+                    const args = input.slice(name.length).trim().split(" ");
+                    const prefix = message.thread?.data?.prefix || global.config.PREFIX;
 
-                // Check if prefix is set, or if no prefix is needed
-                if (prefix === "" || input.startsWith(prefix + name)) {
-                    await commandModule.onCall({
-                        message,
-                        args,
-                        data: { thread: { data: { prefix } } },
-                        userPermissions: message.senderID,
-                        prefix
+                    await commandModule.onCall({ 
+                        message, 
+                        args, 
+                        data: { thread: { data: { prefix } } }, 
+                        userPermissions: message.senderID, 
+                        prefix 
                     });
                 } else {
-                    console.warn(`Command ${name} requires prefix.`);
+                    console.warn(`Command ${name} is not properly configured or missing onCall function.`);
                 }
                 return;
             }
