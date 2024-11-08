@@ -29,11 +29,9 @@ const fetchCommandFiles = () => {
 
 const loadCommand = async (filePath) => {
     try {
-        const commandModule = await import(filePath);
-        const config = commandModule.config || commandModule.default?.config;
-
-        if (config && config.name) {
-            return { commandModule, name: config.name };
+        const { default: commandModule } = await import(filePath);
+        if (commandModule?.config?.name) {
+            return { commandModule, name: commandModule.config.name };
         } else {
             console.warn(`Command config.name not found in ${filePath}`);
             return null;
@@ -46,18 +44,18 @@ const loadCommand = async (filePath) => {
 
 async function onCall({ message }) {
     const input = message.body.trim().toLowerCase();
-    const commandFiles = fetchCommandFiles();
 
+    const commandFiles = fetchCommandFiles();
     for (const { commands } of commandFiles) {
         for (const filePath of commands) {
             const commandData = await loadCommand(filePath);
-
             if (commandData && input.startsWith(commandData.name)) {
                 const { commandModule, name } = commandData;
-                const args = input.slice(name.length).trim().split(" ");
-                const prefix = message.thread?.data?.prefix || global.config.PREFIX;
 
-                if (commandModule?.onCall) {
+                if (commandModule?.config && commandModule.onCall) {
+                    const args = input.slice(name.length).trim().split(" ");
+                    const prefix = message.thread?.data?.prefix || global.config.PREFIX;
+
                     await commandModule.onCall({ 
                         message, 
                         args, 
