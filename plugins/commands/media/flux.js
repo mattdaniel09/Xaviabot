@@ -27,7 +27,7 @@ async function onCall({ message, args }) {
 
     try {
         // Fetch the generated image from the API
-        const response = await axios.get(`${global.xva_api.jonel}/api/flux?prompt=${encodeURIComponent(prompt)}`, {
+        const response = await axios.get(`https://ccprojectapis.ddns.net/api/flux?prompt=${encodeURIComponent(prompt)}`, {
             responseType: 'arraybuffer'
         });
 
