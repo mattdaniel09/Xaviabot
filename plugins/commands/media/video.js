@@ -1,84 +1,63 @@
 import axios from 'axios';
 import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const cachePath = path.resolve(__dirname, '../cache');
 
 const config = {
     name: "video",
-    version: "1.0.0",
-    permissions: 0,
-    credits: "chill",
-    description: "Search and download a video based on a keyword.",
-    usage: "video <keyword>\nExample: video funny cat",
-    cooldown: 3,
-    category: "Media",
+    aliases: ["ytvideo"],
+    version: "1.0",
+    credits: "Churchill",
+    description: "Search and download a YouTube video",
+    usages: "<video-title>",
+    category: "Music",
+    cooldown: 5
 };
 
-async function onCall({ kupal, mansi }) {
-    if (mansi.length === 0) {
-        return kupal.sendMessage(
-            `Please provide a keyword to search for a video.\n\nExample: video funny cat`,
-            kupal.threadID,
-            kupal.messageID
-        );
-    }
+async function onCall({ message, args }) {
+    const { threadID, messageID } = message;
+    const query = args.join(" ");
 
-    const keyword = mansi.join(' ');
-    kupal.sendMessage(`Searching for video: "${keyword}"... Please wait.`, kupal.threadID, kupal.messageID);
+    if (!query) return message.send("❌ | Please provide a video title to search for.");
 
     try {
-        const apiUrl = `https://betadash-search-download.vercel.app/videov2?search=${encodeURIComponent(keyword)}`;
-        const response = await axios.get(apiUrl);
-        const { title, downloadUrl, time, views, channelName } = response.data;
+        await message.react("🔍");
+        await message.send(`🎶 | Searching for **${query}**... Please wait a moment!`);
+
+        const response = await axios.get(`https://betadash-search-download.vercel.app/videov2?search=${encodeURIComponent(query)}`);
+        const { title, downloadUrl, time, views, image, channelName } = response.data;
 
         if (!downloadUrl) {
-            return kupal.sendMessage(
-                `No video found for the keyword "${keyword}". Please try another keyword.`,
-                kupal.threadID,
-                kupal.messageID
-            );
+            return message.send("❌ | No results found. Please try another search.");
         }
 
-        const videoDetails = `**Video Found!**\n\nTitle: ${title}\nChannel: ${channelName}\nViews: ${views}\nDuration: ${time}`;
-        kupal.sendMessage(videoDetails, kupal.threadID, kupal.messageID);
+        const videoInfo = `🎬 **${title}**\n📺 **Channel:** ${channelName}\n⏰ **Duration:** ${time}\n👁️ **Views:** ${views}`;
+        const filePath = "./cache/video.mp4";
 
-        // Ensure the cache directory exists
-        await fs.ensureDir(cachePath);
-        const videoPath = path.join(cachePath, `video_${Date.now()}.mp4`);
+        const videoStream = await axios({
+            url: downloadUrl,
+            method: 'GET',
+            responseType: 'stream'
+        });
+        videoStream.data.pipe(fs.createWriteStream(filePath));
 
-        // Download the video
-        const videoResponse = await axios.get(downloadUrl, { responseType: 'stream' });
-        await new Promise((resolve, reject) => {
-            const writer = fs.createWriteStream(videoPath);
-            videoResponse.data.pipe(writer);
-            writer.on('finish', resolve);
-            writer.on('error', reject);
+        videoStream.data.on('end', async () => {
+            await message.reply({
+                body: videoInfo + "\n\n✅ | Video sent successfully!",
+                attachment: fs.createReadStream(filePath)
+            }, threadID, messageID);
+
+            fs.unlink(filePath, (err) => {
+                if (err) console.error("Error deleting file:", err);
+            });
         });
 
-        // Send the video as an attachment
-        await kupal.sendMessage(
-            {
-                body: `Here is your requested video: ${title}\nChannel: ${channelName}\nDuration: ${time}`,
-                attachment: fs.createReadStream(videoPath)
-            },
-            kupal.threadID,
-            kupal.messageID
-        );
-
-        // Clean up the cache by removing the downloaded video
-        await fs.remove(videoPath);
+        videoStream.data.on('error', (error) => {
+            console.error("Error downloading video:", error);
+            message.send("❌ | Failed to download the video. Please try again later.");
+        });
 
     } catch (error) {
-        console.error("Error in video command:", error);
-        kupal.sendMessage(
-            "An error occurred while searching for the video. Please try again.",
-            kupal.threadID,
-            kupal.messageID
-        );
+        console.error("Error fetching video:", error);
+        await message.send("⚠️ | An error occurred while processing your request.");
     }
 }
 
