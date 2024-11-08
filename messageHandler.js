@@ -3,6 +3,7 @@ import path from 'path';
 
 const commandRootDir = path.resolve('./plugins/commands');
 
+// Fetch all command files in subdirectories
 const fetchCommandFiles = () => {
     const commandFiles = [];
 
@@ -27,6 +28,7 @@ const fetchCommandFiles = () => {
     return commandFiles;
 };
 
+// Load a specific command file
 const loadCommand = async (filePath) => {
     try {
         const { default: commandModule } = await import(filePath);
@@ -42,6 +44,7 @@ const loadCommand = async (filePath) => {
     }
 };
 
+// Handle incoming messages and execute matching commands
 async function onCall({ message }) {
     const input = message.body.trim().toLowerCase();
 
@@ -49,19 +52,17 @@ async function onCall({ message }) {
     for (const { commands } of commandFiles) {
         for (const filePath of commands) {
             const commandData = await loadCommand(filePath);
-            if (commandData && input.startsWith(commandData.name)) {
+            if (commandData && input.startsWith(commandData.name)) {  // Match command name directly, no prefix
                 const { commandModule, name } = commandData;
 
                 if (commandModule?.config && commandModule.onCall) {
                     const args = input.slice(name.length).trim().split(" ");
-                    const prefix = message.thread?.data?.prefix || global.config.PREFIX;
 
                     await commandModule.onCall({ 
                         message, 
                         args, 
-                        data: { thread: { data: { prefix } } }, 
-                        userPermissions: message.senderID, 
-                        prefix 
+                        data: { thread: { data: { prefix: "" } } },  // No prefix
+                        userPermissions: message.senderID
                     });
                 } else {
                     console.warn(`Command ${name} is not properly configured or missing onCall function.`);
