@@ -1,52 +1,64 @@
-import axios from 'axios'; // Make sure to install axios if not installed
+import axios from "axios";
+import { join } from "path";
+import { createWriteStream } from "fs";
 
 const config = {
     name: "ai",
-    aliases: ["chat", "gpt"],
-    description: "Interact with GPT-4 via API",
-    usage: "[query]",
+    aliases: ["chat", "generate"],
+    description: "Interact with GPT-4 API and generate text or images based on prompts.",
+    usage: "[prompt]",
     cooldown: 3,
-    permissions: [0], // General users can access
-    isAbsolute: false,
-    isHidden: false,
-    credits: "XaviaTeam",
+    permissions: [0],
+    credits: "churchill"
 };
 
 const langData = {
-    "lang_1": {
-        "message": "Please provide a prompt to interact with the AI.",
-    },
-    "lang_2": {
-        "message": "Kailangan mo magbigay ng prompt para makipag-ugnayan sa AI.",
+    "en_US": {
+        "missingPrompt": "Please provide a prompt to interact with the AI.",
+        "error": "An error occurred while processing your request.",
     }
 };
 
-async function onCall({ message, args, getLang, data, userPermissions, prefix }) {
-    if (args.length === 0) {
-        // If no arguments (prompt) are provided, send a message back.
-        return message.send(getLang("message"));
-    }
+async function onCall({ message, args, getLang }) {
+    if (args.length === 0) return message.reply(getLang("𝘗𝘭𝘴𝘴 𝘱𝘳𝘰𝘷𝘪𝘥𝘦 𝘢 𝘲𝘶𝘦𝘴𝘵𝘪𝘰𝘯\n\n𝘌𝘹: 𝘈𝘪 𝘸𝘩𝘢𝘵 𝘪𝘴 𝘭𝘰𝘷𝘦"));
 
-    const input = args.join(" "); // Combine arguments into a single prompt
-    const userId = data.user?.id || 100; // User ID from data or default to 100
+    const prompt = args.join(" ");
 
     try {
-        // Use axios to make the API request
-        const { data } = await axios.get('https://gpt4-api-zl5u.onrender.com/api/gpt4o', {
-            params: {
-                prompt: input,
-                uid: userId
-            }
+        const response = await axios.get(`${global.xva_api.jonel}/api/gpt4o-v2`, {
+            params: { prompt }
         });
 
-        if (data && data.response) {
-            message.send(data.response); // Send AI's response to the user
+        const { response: aiResponse } = response.data;
+
+        if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
+            const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
+            if (imageUrlMatch && imageUrlMatch[1]) {
+                const imageUrl = imageUrlMatch[1];
+
+                const cachePath = join(global.cachePath, `generated_${Date.now()}.png`);
+                const writer = createWriteStream(cachePath);
+                const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
+
+                imageResponse.data.pipe(writer);
+
+                writer.on("finish", async () => {
+                    await message.reply({
+                        body: "Here is the generated image:",
+                        attachment: global.reader(cachePath)
+                    });
+                });
+
+                writer.on("error", () => message.reply(getLang("error")));
+            } else {
+                message.reply(getLang("error"));
+            }
         } else {
-            message.send("Sorry, I couldn't understand the response from the AI.");
+            message.reply(aiResponse);
         }
     } catch (error) {
-        message.send("An error occurred while trying to reach the AI. Please try again later.");
-        console.error("Error while calling AI API:", error);
+        console.error("Error in AI command:", error);
+        message.reply(getLang("error"));
     }
 }
 
