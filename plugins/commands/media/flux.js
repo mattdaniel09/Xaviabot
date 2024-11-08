@@ -33,6 +33,11 @@ async function onCall({ message, args, getLang, data }) {
         // Fetch the image data directly from Jonel's API endpoint
         const response = await fetchFromEndpoint("jonel", "/api/flux", { prompt }, { responseType: "stream" });
 
+        // Check if the response has data and is a readable stream
+        if (!response || !response.data || typeof response.data.pipe !== "function") {
+            throw new Error("Invalid response stream");
+        }
+
         // Define the file path for saving the image
         const cachePath = join(global.cachePath, `flux_${Date.now()}.png`);
         const writer = createWriteStream(cachePath);
@@ -47,7 +52,8 @@ async function onCall({ message, args, getLang, data }) {
             });
         });
 
-        writer.on("error", () => {
+        writer.on("error", (err) => {
+            console.error("File write error:", err);
             message.send(getLang("error"));
         });
     } catch (error) {
