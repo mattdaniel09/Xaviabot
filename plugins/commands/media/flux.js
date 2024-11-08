@@ -1,8 +1,8 @@
-import { join, dirname } from "path";
-import { createWriteStream } from "fs";
-import { fetchFromEndpoint } from "../../api.js";
-import { fileURLToPath } from 'url';
 import axios from "axios";
+import fs from "fs-extra"; // Import fs-extra for extended functionalities
+import { join, dirname } from "path";
+import { fileURLToPath } from 'url';
+import { fetchFromEndpoint } from "../../api.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const cachePath = join(__dirname, './plugins/commands/cache');
@@ -40,9 +40,13 @@ async function onCall({ message, args, getLang, data }) {
 
         const imageUrl = response.response;
         const imagePath = join(cachePath, `generated_flux_${Date.now()}.png`);
-        const writer = createWriteStream(imagePath);
+
+        // Ensure cache directory exists
+        await fs.ensureDir(cachePath);
 
         const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
+        const writer = fs.createWriteStream(imagePath); // Use fs-extra's method
+
         imageResponse.data.pipe(writer);
 
         writer.on("finish", async () => {
@@ -50,6 +54,8 @@ async function onCall({ message, args, getLang, data }) {
                 body: "Here is the generated image:",
                 attachment: global.reader(imagePath)
             });
+            // Clean up the file after sending
+            await fs.unlink(imagePath);
         });
 
         writer.on("error", () => {
