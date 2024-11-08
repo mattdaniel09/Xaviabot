@@ -1,3 +1,4 @@
+import axios from "axios";
 import { join } from "path";
 import { createWriteStream } from "fs";
 import { fetchFromEndpoint } from "../../api.js";  // Import from api.js
@@ -29,18 +30,15 @@ async function onCall({ message, args, getLang, data }) {
     message.send(getLang("generating"));
 
     try {
-        const response = await fetchFromEndpoint("jonel", "/api/flux", { prompt });
+        // Fetch the image data directly from Jonel's API endpoint
+        const response = await fetchFromEndpoint("jonel", "/api/flux", { prompt }, { responseType: "stream" });
 
-        if (!response || !response.url) {
-            return message.send(getLang("error"));
-        }
-
-        const imageUrl = response.url;
+        // Define the file path for saving the image
         const cachePath = join(global.cachePath, `flux_${Date.now()}.png`);
         const writer = createWriteStream(cachePath);
 
-        const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
-        imageResponse.data.pipe(writer);
+        // Pipe the image data to the file
+        response.data.pipe(writer);
 
         writer.on("finish", async () => {
             await message.send({
