@@ -21,7 +21,7 @@ const config = {
 };
 
 async function onCall({ message, args, data }) {
-    const prefix = data?.thread?.data?.prefix || global.config.PREFIX; // Get the prefix from thread data or global config
+    const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
 
     if (args.length === 0) {
         return message.reply(`Please provide a keyword to search for TikTok videos.\n\nExample: ${prefix}tiksearch apt`);
@@ -31,7 +31,6 @@ async function onCall({ message, args, data }) {
     message.reply("Searching for TikTok videos...");
 
     try {
-        // Make a request to the TikTok API to search for videos
         const response = await axios.get(`${apiConfig.jonel}/api/tiktok/searchvideo?keywords=${encodeURIComponent(keyword)}`);
 
         if (response.status !== 200 || !response.data || response.data.code !== 0) {
@@ -44,18 +43,13 @@ async function onCall({ message, args, data }) {
             return message.reply("No TikTok videos found for the given keyword.");
         }
 
-        // Select the first video from the search results
         const video = videos[0];
-
-        // Prepare the video URL and title
         const videoUrl = video.play;
         const title = video.title;
 
-        // Download the video and send it as an attachment
         const videoPath = path.join(cachePath, `tiksearch_video_${Date.now()}.mp4`);
         const writer = createWriteStream(videoPath);
         
-        // Download the video content as a stream
         const videoStream = await axios.get(videoUrl, { responseType: 'stream' });
 
         videoStream.data.pipe(writer);
@@ -66,7 +60,6 @@ async function onCall({ message, args, data }) {
                 attachment: fs.createReadStream(videoPath)
             });
 
-            // Clean up the file after sending
             fs.remove(videoPath);
         });
 
