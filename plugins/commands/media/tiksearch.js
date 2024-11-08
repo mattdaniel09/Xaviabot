@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import apiConfig from '../api/api.js';
+import { createWriteStream } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,10 +51,28 @@ async function onCall({ message, args, data }) {
         const videoUrl = video.play;
         const title = video.title;
 
-        // Send the video as an attachment with the title in the body
-        await message.reply({
-            body: `Here is the TikTok video for the search keyword "${keyword}":\n\nTitle: ${title}`,
-            attachment: videoUrl
+        // Download the video and send it as an attachment
+        const videoPath = path.join(cachePath, `tiksearch_video_${Date.now()}.mp4`);
+        const writer = createWriteStream(videoPath);
+        
+        // Download the video content as a stream
+        const videoStream = await axios.get(videoUrl, { responseType: 'stream' });
+
+        videoStream.data.pipe(writer);
+
+        writer.on('finish', async () => {
+            await message.reply({
+                body: `Here is the TikTok video for the search keyword "${keyword}":\n\nTitle: ${title}`,
+                attachment: fs.createReadStream(videoPath)
+            });
+
+            // Clean up the file after sending
+            fs.remove(videoPath);
+        });
+
+        writer.on('error', (err) => {
+            console.error("Error downloading the video:", err);
+            message.reply("An error occurred while downloading the video.");
         });
 
     } catch (error) {
