@@ -1,7 +1,7 @@
 import { join } from "path";
 import { createWriteStream } from "fs";
 import axios from "axios";
-import apiConfig from '../../api/api.js';  // Ensure apiConfig contains the jonel endpoint
+import apiConfig from '../api/api.js';
 
 const config = {
     name: "ai",
