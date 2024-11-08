@@ -24,7 +24,7 @@ const langData = {
 async function onCall({ message, args, getLang, data }) {
     const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
 
-    if (args.length === 0) return message.send(getLang("missingPrompt", prefix));
+    if (args.length === 0) return message.send(getLang("missingPrompt")(prefix)); // Call the function to get the message
 
     const prompt = args.join(" ");
     const answeringMessage = await message.send(getLang("answering")); // Send answering indicator
@@ -50,7 +50,6 @@ async function onCall({ message, args, getLang, data }) {
                 imageResponse.data.pipe(writer);
 
                 writer.on("finish", async () => {
-                    await answeringMessage.delete(); // Remove answering indicator
                     await message.send({
                         body: "Here is the generated image:",
                         attachment: global.reader(cachePath)
@@ -58,19 +57,18 @@ async function onCall({ message, args, getLang, data }) {
                 });
 
                 writer.on("error", () => {
-                    answeringMessage.delete(); // Remove answering indicator
                     message.send(getLang("error"));
                 });
             }
         } else {
             // Handle text response
-            answeringMessage.delete(); // Remove answering indicator
-            message.send(aiResponse);
+            await message.send(aiResponse);
         }
     } catch (error) {
-        answeringMessage.delete(); // Remove answering indicator
         console.error("Error in AI command:", error);
         message.send(getLang("error"));
+    } finally {
+        if (answeringMessage) await answeringMessage.delete(); // Safely delete answering indicator if possible
     }
 }
 
