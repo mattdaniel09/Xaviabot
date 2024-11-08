@@ -1,16 +1,15 @@
 const langData = {
     "en_US": {
-        "prefix.get": "🌐 | Bot's Current Prefix is [ {prefix} ]\nChat {prefix}help to see all commands."
+        "prefix.get": "🌐 | The bot's current prefix is [ {prefix} ].\nType {prefix}help to see all commands."
     }
-}
+};
 
 function onCall({ message, getLang, data }) {
     const validTriggers = ["prefix", "chill"];
 
     if (validTriggers.includes(message.body) && message.senderID !== global.botID) {
-        message.reply(getLang("prefix.get", {
-            prefix: data?.thread?.data?.prefix || global.config.PREFIX
-        }));
+        const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
+        message.reply(getLang("prefix.get", { prefix }));
     }
 
     return;
@@ -19,4 +18,4 @@ function onCall({ message, getLang, data }) {
 export default {
     langData,
     onCall
-}
+};
