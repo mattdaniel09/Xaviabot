@@ -19,8 +19,8 @@ const langData = {
     }
 };
 
-async function onCall({ message, args, getLang }) {
-    if (args.length === 0) return message.reply(getLang("𝘗𝘭𝘴𝘴 𝘱𝘳𝘰𝘷𝘪𝘥𝘦 𝘢 𝘲𝘶𝘦𝘴𝘵𝘪𝘰𝘯\n\n𝘌𝘹: 𝘈𝘪 𝘸𝘩𝘢𝘵 𝘪𝘴 𝘭𝘰𝘷𝘦"));
+async function onCall({ message, args }) {
+    if (args.length === 0) return;
 
     const prompt = args.join(" ");
 
@@ -29,36 +29,37 @@ async function onCall({ message, args, getLang }) {
             params: { prompt }
         });
 
-        const { response: aiResponse } = response.data;
+        if (!response || !response.data || !response.data.response) return;
 
+        const aiResponse = response.data.response;
+
+        // Handle image response
         if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
             const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
+
             if (imageUrlMatch && imageUrlMatch[1]) {
                 const imageUrl = imageUrlMatch[1];
-
                 const cachePath = join(global.cachePath, `generated_${Date.now()}.png`);
                 const writer = createWriteStream(cachePath);
-                const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
 
+                const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
                 imageResponse.data.pipe(writer);
 
                 writer.on("finish", async () => {
-                    await message.reply({
+                    await message.send({
                         body: "Here is the generated image:",
                         attachment: global.reader(cachePath)
                     });
                 });
 
-                writer.on("error", () => message.reply(getLang("error")));
-            } else {
-                message.reply(getLang("error"));
+                writer.on("error", () => {});
             }
         } else {
-            message.reply(aiResponse);
+            // Handle text response
+            message.send(aiResponse);
         }
     } catch (error) {
         console.error("Error in AI command:", error);
-        message.reply(getLang("error"));
     }
 }
 
