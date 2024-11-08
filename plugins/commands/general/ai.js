@@ -1,74 +1,59 @@
-import { join } from "path";
-import { createWriteStream } from "fs";
-import { fetchFromEndpoint } from "../../api.js";
-import axios from "axios";
+import axios from 'axios';
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import apiConfig from '../api/api.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const cachePath = path.resolve(__dirname, '../cache');
 
 const config = {
-    name: "ai",
-    aliases: ["chat", "generate"],
-    description: "Interact with GPT-4 API to generate text or images based on prompts.",
+    name: "flux",
+    version: "1.0.0",
+    permissions: 0,
+    credits: "chill",
+    description: "Generate an image with a prompt using Jonel's API",
     usage: "[prompt]",
     cooldown: 3,
-    permissions: [0],
-    credits: "chilli"
+    category: "Images",
 };
 
-const langData = {
-    "en_US": {
-        "missingPrompt": (prefix) => `Please provide a question or prompt for the AI.\n\nEx: ${prefix}ai what is love`,
-        "answering": "Searching...",
-        "error": "An error occurred while processing your request.",
+async function onCall({ message, args, data }) {
+    const prefix = data?.thread?.data?.prefix || global.config.PREFIX; // Get the prefix from thread data or global config
+
+    if (args.length === 0) {
+        return message.reply(`Please provide a prompt for the image generation.\n\nExample: ${prefix}flux cat`);
     }
-};
-
-async function onCall({ message, args, getLang, data }) {
-    const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
-
-    if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const prompt = args.join(" ");
-    message.reply(getLang("answering"));
+    message.reply("Generating image...");
 
     try {
-        const response = await fetchFromEndpoint("jonel", "/api/gpt4o-v2", { prompt });
+        const response = await axios.get(`${apiConfig.jonel}/api/flux?prompt=${encodeURIComponent(prompt)}`, {
+            responseType: 'arraybuffer'
+        });
 
-        if (!response || !response.response) return message.reply(getLang("error"));
-
-        const aiResponse = response.response;
-
-        if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
-            const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
-
-            if (imageUrlMatch && imageUrlMatch[1]) {
-                const imageUrl = imageUrlMatch[1];
-                const cachePath = join(global.cachePath, `generated_${Date.now()}.png`);
-                const writer = createWriteStream(cachePath);
-
-                const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
-                imageResponse.data.pipe(writer);
-
-                writer.on("finish", async () => {
-                    await message.reply({
-                        body: "Here is the generated image:",
-                        attachment: global.reader(cachePath)
-                    });
-                });
-
-                writer.on("error", () => {
-                    message.reply(getLang("error"));
-                });
-            }
-        } else {
-            await message.reply(aiResponse);
+        if (response.status !== 200) {
+            return message.reply("An error occurred while generating the image.");
         }
+
+        const imgBuffer = Buffer.from(response.data, 'binary');
+        await fs.ensureDir(cachePath);
+        const filePath = path.join(cachePath, `flux_${Date.now()}.png`);
+        await fs.outputFile(filePath, imgBuffer);
+
+        await message.reply({
+            body: "Here is your generated image:",
+            attachment: fs.createReadStream(filePath)
+        });
     } catch (error) {
-        console.error("Error in AI command:", error);
-        message.reply(getLang("error"));
+        console.error("Error in flux command:", error);
+        message.reply("An error occurred while generating the image.");
     }
 }
 
 export default {
     config,
-    langData,
     onCall
 };
