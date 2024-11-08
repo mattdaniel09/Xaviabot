@@ -16,7 +16,7 @@ const config = {
 const langData = {
     "en_US": {
         "missingPrompt": (prefix) => `Please provide a question or prompt for the AI.\n\nEx: ${prefix}ai what is love`,
-        "answering": "AI is typing...",
+        "answering": "𝘚𝘦𝘢𝘳𝘤𝘩𝘪𝘯𝘨...",
         "error": "An error occurred while processing your request.",
     }
 };
@@ -27,7 +27,7 @@ async function onCall({ message, args, getLang, data }) {
     if (args.length === 0) return message.send(getLang("missingPrompt")(prefix)); // Call the function to get the message
 
     const prompt = args.join(" ");
-    const answeringMessage = await message.send(getLang("answering")); // Send answering indicator
+    message.send(getLang("answering")); // Send answering indicator, no delete
 
     try {
         // Use fetchFromEndpoint to get data from Jonel's endpoint
@@ -67,8 +67,6 @@ async function onCall({ message, args, getLang, data }) {
     } catch (error) {
         console.error("Error in AI command:", error);
         message.send(getLang("error"));
-    } finally {
-        if (answeringMessage) await answeringMessage.delete(); // Safely delete answering indicator if possible
     }
 }
 
