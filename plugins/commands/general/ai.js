@@ -38,7 +38,6 @@ async function onCall({ message, args, getLang, data }) {
 
         const aiResponse = response.data.response;
 
-        // Handle image generation request
         if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
             const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
 
@@ -64,13 +63,12 @@ async function onCall({ message, args, getLang, data }) {
                 });
             }
         } else {
-            // Retrieve the user's full name
             const userInfo = await global.controllers.Users.getInfo(message.senderID);
             const senderName = userInfo?.name || "User";
 
             await message.react("✅");
             await message.reply({
-                body: aiResponse + `\n\n✨ *Asked by:* ✨\n${senderName}`,
+                body: aiResponse + `\n\n👤 𝘈𝘴𝘬𝘦𝘥 𝘣𝘺: ${senderName}`,
                 mentions: [{ tag: senderName, id: message.senderID }]
             });
         }
