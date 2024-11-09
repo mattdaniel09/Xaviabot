@@ -32,7 +32,7 @@ async function onCall({ message, args, getLang, data }) {
     if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const query = args.join(" ");
-
+    
     try {
         const response = await axios.get(`https://dlvc.vercel.app/yt-audio?search=${encodeURIComponent(query)}`);
         
@@ -42,10 +42,11 @@ async function onCall({ message, args, getLang, data }) {
         }
 
         const { downloadUrl, title, Artist, time, views, thumbnail } = response.data;
+        const encodedUrl = encodeURIComponent(downloadUrl); // Encode the download URL to handle special characters
         const audioPath = join(cacheFolder, `audio_${Date.now()}.mp3`);
 
         const writer = fs.createWriteStream(audioPath);
-        const audioResponse = await axios.get(downloadUrl, { responseType: "stream" });
+        const audioResponse = await axios.get(decodeURIComponent(encodedUrl), { responseType: "stream" }); // Decode the URL for the request
         audioResponse.data.pipe(writer);
 
         writer.on("finish", async () => {
