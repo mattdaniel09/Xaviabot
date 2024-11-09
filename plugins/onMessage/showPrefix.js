@@ -1,6 +1,6 @@
 const langData = {
     "en_US": {
-        "kupal.get": "🌐 | The bot's current prefix is [ {kupal} ].\nType [ {kupal} ] \nhelp to see all commands.",
+        "kupal.get": "🌐 | The bot's current prefix is [ {kupal} ].",
         "kupal.noCommand": "❗ | No command detected. Type [ {kupal}help ] to see all available commands."
     }
 };
