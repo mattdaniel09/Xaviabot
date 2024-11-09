@@ -1,6 +1,7 @@
 import axios from "axios";
 import { join } from "path";
 import { createWriteStream } from "fs";
+import apiConfig from '../api/api.js';
 import { fileURLToPath } from "url";
 
 const config = {
@@ -47,7 +48,7 @@ async function onCall({ message, args, getLang, data }) {
         let lyrics = "Lyrics not found";
         let lyricsImage = thumbnail;
         try {
-            const lyricsResponse = await axios.get(`https://joshweb.click/search/lyrics?q=${encodeURIComponent(query)}`);
+            const lyricsResponse = await axios.get(`${apiConfig.josh}/search/lyrics?q=${encodeURIComponent(query)}`);
             if (lyricsResponse.data?.result) {
                 lyrics = lyricsResponse.data.result.lyrics;
                 lyricsImage = lyricsResponse.data.result.image || thumbnail;
