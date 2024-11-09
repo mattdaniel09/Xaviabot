@@ -38,7 +38,7 @@ async function onCall({ message, args, getLang, data }) {
 
         const aiResponse = response.data.response;
 
-        // For generated images
+        // Handle image generation request
         if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
             const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
 
@@ -64,11 +64,14 @@ async function onCall({ message, args, getLang, data }) {
                 });
             }
         } else {
-            // Cleanly display Facebook name of the sender
-            const senderName = message.senderName || "User";
+            // Retrieve the user's full name
+            const userInfo = await global.controllers.Users.getInfo(message.senderID);
+            const senderName = userInfo?.name || "User";
+
             await message.react("✅");
             await message.reply({
-                body: `${aiResponse}\n\n✨ Asked by: ${senderName}`,
+                body: aiResponse + `\n\n✨ *Asked by:* ✨\n${senderName}`,
+                mentions: [{ tag: senderName, id: message.senderID }]
             });
         }
     } catch (error) {
