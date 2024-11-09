@@ -63,11 +63,10 @@ async function onCall({ message, args, getLang, data }) {
                 });
             }
         } else {
-            const senderName = message.senderName ? String(message.senderName) : "User";
+            const senderName = message.senderName || "User";
             await message.react("✅");
             await message.reply({
-                body: aiResponse + `\n\n✨ *Asked by:* ✨\n@${senderName}`,
-                mentions: [{ tag: senderName, id: message.senderID }]
+                body: `${aiResponse}\n\n✨ *Asked by:* ${senderName}`,
             });
         }
     } catch (error) {
