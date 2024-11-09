@@ -7,11 +7,11 @@ const config = {
     name: "music",
     aliases: ["playmusic", "ytmusic"],
     version: "1.0",
-    credits: "chill",
+    credits: "YourName",
     description: "Play a song from YouTube",
     usages: "<song-name>",
     category: "Music",
-    cooldown: 5
+    cooldown: 10
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,7 +62,10 @@ async function onCall({ message, args }) {
 }
 
 async function downloadTrack(url) {
-    const response = await axios.get(url, { responseType: 'stream' });
+    // Encode the URL to handle special characters
+    const encodedUrl = encodeURI(url);
+    
+    const response = await axios.get(encodedUrl, { responseType: 'stream' });
     const filePath = `${cacheFolder}/${randomString()}.mp3`;
 
     const writeStream = fs.createWriteStream(filePath);
