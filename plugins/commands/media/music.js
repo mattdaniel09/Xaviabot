@@ -1,31 +1,30 @@
 import axios from "axios";
 import { join } from "path";
-import { createWriteStream } from "fs";
+import fs from "fs-extra";
 import { fileURLToPath } from "url";
 
 const config = {
     name: "music",
     aliases: ["song", "ytmusic"],
-    description: "Search and download a YouTube audio track.",
-    usage: "[song title]",
-    cooldown: 3,
+    description: "Download a YouTube audio track based on search term.",
+    usage: "[search term]",
+    cooldown: 5,
     permissions: [0],
     credits: "chilli"
 };
 
 const langData = {
     "en_US": {
-        "missingPrompt": (prefix) => `🎶 Please provide a song title or artist.\n\nEx: ${prefix}music Bruno Mars`,
+        "missingPrompt": (prefix) => `Please provide a music title or search term.\n\nEx: ${prefix}music Apt`,
         "error": "An error occurred while processing your request.",
-        "downloading": "Fetching your song, please hold on 🎶",
-        "sending": "Here’s your song! 🎧",
+        "sending": "🎶 Music is ready and being sent..."
     }
 };
 
-// Ensure cache directory exists
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = join(__filename, "..");
 const cacheFolder = join(__dirname, "cache");
+fs.ensureDirSync(cacheFolder);
 
 async function onCall({ message, args, getLang, data }) {
     const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
@@ -33,29 +32,31 @@ async function onCall({ message, args, getLang, data }) {
     if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const query = args.join(" ");
-    const requestUrl = `https://dlvc.vercel.app/yt-audio?search=${encodeURIComponent(query)}`;
-    await message.react("🎶");
 
     try {
-        const response = await axios.get(requestUrl);
-
+        const response = await axios.get(`https://dlvc.vercel.app/yt-audio?search=${encodeURIComponent(query)}`);
+        
         if (!response.data || !response.data.downloadUrl) {
             await message.react("❌");
             return message.reply(getLang("error"));
         }
 
-        const { title, downloadUrl, time, views, Artist, Album, thumbnail, channelName } = response.data;
-        const songPath = join(cacheFolder, `audio_${Date.now()}.mp3`);
+        const { downloadUrl, title, Artist, time, views, thumbnail } = response.data;
+        const audioPath = join(cacheFolder, `audio_${Date.now()}.mp3`);
 
-        const writer = createWriteStream(songPath);
+        const writer = fs.createWriteStream(audioPath);
         const audioResponse = await axios.get(downloadUrl, { responseType: "stream" });
         audioResponse.data.pipe(writer);
 
         writer.on("finish", async () => {
-            await message.react("✅");
+            await message.react("🎧");
             await message.reply({
-                body: `🎼 *${title}* by *${Artist}*\n📀 Album: *${Album}*\n⏳ Duration: *${time}*\n👁️ Views: *${views}*\n📺 Channel: *${channelName}*\n\n✨ *Enjoy your music!*`,
-                attachment: [global.reader(songPath), thumbnail]
+                body: `🎵 Here is your music: ${title}\n\nArtist: ${Artist}\nDuration: ${time}\nViews: ${views}`,
+                attachment: global.reader(audioPath)
+            });
+            fs.unlink(audioPath, (err) => {
+                if (err) console.error("Error deleting file:", err);
+                else console.log("File deleted successfully.");
             });
         });
 
