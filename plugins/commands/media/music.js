@@ -40,14 +40,13 @@ async function onCall({ message, args }) {
         await message.react("⌛");
 
         const response = await axios.get(`https://dlvc.vercel.app/yt-audio?search=${encodeURIComponent(songQuery)}`);
-        const { title, downloadUrl, time, views, Artist, Album, thumbnail, channelName } = response.data;
+        const { title, downloadUrl, time, views, Artist, Album, channelName } = response.data;
 
         const filePath = await downloadTrack(downloadUrl);
 
         await message.reply({
             body: `🎶 Now Playing: ${title}\n🎤 Artist: ${Artist}\n📀 Album: ${Album}\n⏱ Duration: ${time}\n👁 Views: ${views}\n📺 Channel: ${channelName}`,
-            attachment: fs.createReadStream(filePath),
-            thumbnail: thumbnail
+            attachment: fs.createReadStream(filePath)
         });
 
         fs.unlink(filePath, (err) => {
@@ -62,7 +61,6 @@ async function onCall({ message, args }) {
 }
 
 async function downloadTrack(url) {
-    // Encode the URL to handle special characters
     const encodedUrl = encodeURI(url);
     
     const response = await axios.get(encodedUrl, { responseType: 'stream' });
