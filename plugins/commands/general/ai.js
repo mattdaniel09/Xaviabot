@@ -38,6 +38,7 @@ async function onCall({ message, args, getLang, data }) {
 
         const aiResponse = response.data.response;
 
+        // For generated images
         if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
             const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
 
@@ -63,6 +64,7 @@ async function onCall({ message, args, getLang, data }) {
                 });
             }
         } else {
+            // Cleanly display Facebook name of the sender
             const senderName = message.senderName || "User";
             await message.react("✅");
             await message.reply({
