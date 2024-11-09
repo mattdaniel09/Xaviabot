@@ -26,13 +26,13 @@ async function onCall({ message, args, getLang, data }) {
     if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
 
     const prompt = args.join(" ");
-    await message.react("🔍");  // Searching emoji reaction
+    await message.react("🔍");
 
     try {
         const response = await axios.get(`${apiConfig.jonel}/api/gpt4o-v2?prompt=${encodeURIComponent(prompt)}`);
 
         if (!response.data || !response.data.response) {
-            await message.react("❌");  // Error emoji reaction
+            await message.react("❌");
             return message.reply(getLang("error"));
         }
 
@@ -50,7 +50,7 @@ async function onCall({ message, args, getLang, data }) {
                 imageResponse.data.pipe(writer);
 
                 writer.on("finish", async () => {
-                    await message.react("✅");  // Success emoji reaction
+                    await message.react("✅");
                     await message.reply({
                         body: "Here is the generated image:",
                         attachment: global.reader(cachePath)
@@ -58,17 +58,20 @@ async function onCall({ message, args, getLang, data }) {
                 });
 
                 writer.on("error", async () => {
-                    await message.react("❌");  // Error emoji reaction
+                    await message.react("❌");
                     message.reply(getLang("error"));
                 });
             }
         } else {
-            await message.react("✅");  // Success emoji reaction
-            await message.reply(aiResponse);
+            await message.react("✅");
+            await message.reply({
+                body: aiResponse + `\n\n✨ *Asked by:* ✨\n@${message.senderName}`,
+                mentions: [{ tag: message.senderName, id: message.senderID }]
+            });
         }
     } catch (error) {
         console.error("Error in AI command:", error);
-        await message.react("❌");  // Error emoji reaction
+        await message.react("❌");
         message.reply(getLang("error"));
     }
 }
