@@ -7,11 +7,11 @@ const config = {
     name: "music",
     aliases: ["playmusic", "ytmusic"],
     version: "1.0",
-    credits: "YourName",
-    description: "Play a song from YouTube",
+    credits: "chilli",
+    description: "Play a song with lyrics from YouTube",
     usages: "<song-name>",
     category: "Music",
-    cooldown: 10
+    cooldown: 5
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,16 +36,23 @@ async function onCall({ message, args }) {
 
     try {
         await ensureCacheFolderExists();
-
         await message.react("⌛");
 
-        const response = await axios.get(`https://dlvc.vercel.app/yt-audio?search=${encodeURIComponent(songQuery)}`);
-        const { title, downloadUrl, time, views, Artist, Album, channelName } = response.data;
+        const lyricsResponse = await axios.get(`https://markdevs-last-api-vtjp.onrender.com/search/lyrics?q=${encodeURIComponent(songQuery)}`);
+        const lyrics = lyricsResponse.data.result.lyrics;
+        const title = lyricsResponse.data.result.title;
+        const artist = lyricsResponse.data.result.artist;
+
+        await message.send(`🎶 Lyrics for "${title}" by ${artist}:\n\n${lyrics}`);
+
+        const musicResponse = await axios.get(`https://dlvc.vercel.app/yt-audio?search=${encodeURIComponent(songQuery)}`);
+        const { title: songTitle, downloadUrl, time, views, Artist, Album, channelName } = musicResponse.data;
 
         const filePath = await downloadTrack(downloadUrl);
+        await message.react("🎧");
 
         await message.reply({
-            body: `🎶 Now Playing: ${title}\n🎤 Artist: ${Artist}\n📀 Album: ${Album}\n⏱ Duration: ${time}\n👁 Views: ${views}\n📺 Channel: ${channelName}`,
+            body: `🎶 Now Playing: ${songTitle}\n🎤 Artist: ${Artist}\n📀 Album: ${Album}\n⏱ Duration: ${time}\n👁 Views: ${views}\n📺 Channel: ${channelName}`,
             attachment: fs.createReadStream(filePath)
         });
 
@@ -62,7 +69,6 @@ async function onCall({ message, args }) {
 
 async function downloadTrack(url) {
     const encodedUrl = encodeURI(url);
-    
     const response = await axios.get(encodedUrl, { responseType: 'stream' });
     const filePath = `${cacheFolder}/${randomString()}.mp3`;
 
