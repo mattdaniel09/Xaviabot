@@ -66,7 +66,7 @@ async function onCall({ message, args, getLang, data }) {
             const senderName = message.senderName || "User";
             await message.react("✅");
             await message.reply({
-                body: `${aiResponse}\n\n✨ *Asked by:* ${senderName}`,
+                body: `${aiResponse}\n\n✨ Asked by: ${senderName}`,
             });
         }
     } catch (error) {
