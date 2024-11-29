@@ -1,5 +1,6 @@
 import axios from "axios";
 import fs from "fs-extra";
+import apiConfig from '../api/api.js';
 
 const config = {
     name: "faceswap",
@@ -11,14 +12,14 @@ const config = {
 };
 
 async function onCall({ message }) {
-    // Ensure the user replied to a message
+    
     if (!message.messageReply || !message.messageReply.attachments || message.messageReply.attachments.length < 2) {
         return message.reply("❗ Please **reply to a message** containing **two image attachments** to perform a face swap.");
     }
 
     const attachments = message.messageReply.attachments;
 
-    // Check for valid URLs of the attached images
+
     const baseImage = attachments[0];
     const swapImage = attachments[1];
     if (!baseImage.url || !swapImage.url) {
@@ -28,8 +29,8 @@ async function onCall({ message }) {
     await message.react("🔄"); // React to indicate processing
 
     try {
-        // Perform API call for face swap
-        const apiUrl = `https://kaiz-apis.gleeze.com/api/faceswap?swapUrl=${encodeURIComponent(
+        
+        const apiUrl = `${apiConfig.kaizen}/api/faceswap?swapUrl=${encodeURIComponent(
             swapImage.url
         )}&baseUrl=${encodeURIComponent(baseImage.url)}`;
 
@@ -40,11 +41,11 @@ async function onCall({ message }) {
             return message.reply("❗ Failed to process the face swap. Please try again later.");
         }
 
-        // Save the swapped image locally
+        
         const swappedImagePath = `${global.cachePath || "./cache"}/faceswap_${Date.now()}.jpg`;
         await fs.outputFile(swappedImagePath, response.data);
 
-        // Send the swapped image as a reply
+        
         await message.react("✅");
         await message.reply({
             body: "👥 **Face Swap Complete!** Here is your swapped image:",
