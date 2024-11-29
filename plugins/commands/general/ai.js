@@ -1,10 +1,12 @@
 import axios from "axios";
+import { join } from "path";
+import { createWriteStream } from "fs";
 import apiConfig from '../api/api.js';
 
 const config = {
     name: "ai",
-    aliases: ["chat"],
-    description: "Interact with GPT-4 API to generate text responses based on prompts.",
+    aliases: ["chat", "generate"],
+    description: "Interact with GPT-4 API to generate text or images based on prompts.",
     usage: "[prompt]",
     cooldown: 3,
     permissions: [0],
@@ -27,7 +29,7 @@ async function onCall({ message, args, getLang, data }) {
     await message.react("🔍");
 
     try {
-        const response = await axios.get(`${apiConfig.kenlie}/blackbox-gpt4o/?text=${encodeURIComponent(prompt)}`);
+        const response = await axios.get(`${apiConfig.jonel}/api/gpt4o-v2?prompt=${encodeURIComponent(prompt)}`);
 
         if (!response.data || !response.data.response) {
             await message.react("❌");
@@ -36,14 +38,40 @@ async function onCall({ message, args, getLang, data }) {
 
         const aiResponse = response.data.response;
 
-        const userInfo = await global.controllers.Users.getInfo(message.senderID);
-        const senderName = userInfo?.name || "User";
+        if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
+            const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
 
-        await message.react("✅");
-        await message.reply({
-            body: aiResponse + `\n\n👤 𝘈𝘴𝘬𝘦𝘥 𝘣𝘺: ${senderName}`,
-            mentions: [{ tag: senderName, id: message.senderID }]
-        });
+            if (imageUrlMatch && imageUrlMatch[1]) {
+                const imageUrl = imageUrlMatch[1];
+                const cachePath = join(global.cachePath, `generated_${Date.now()}.png`);
+                const writer = createWriteStream(cachePath);
+
+                const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
+                imageResponse.data.pipe(writer);
+
+                writer.on("finish", async () => {
+                    await message.react("✅");
+                    await message.reply({
+                        body: "Here is the generated image:",
+                        attachment: global.reader(cachePath)
+                    });
+                });
+
+                writer.on("error", async () => {
+                    await message.react("❌");
+                    message.reply(getLang("error"));
+                });
+            }
+        } else {
+            const userInfo = await global.controllers.Users.getInfo(message.senderID);
+            const senderName = userInfo?.name || "User";
+
+            await message.react("✅");
+            await message.reply({
+                body: aiResponse + `\n\n👤 𝘈𝘴𝘬𝘦𝘥 𝘣𝘺: ${senderName}`,
+                mentions: [{ tag: senderName, id: message.senderID }]
+            });
+        }
     } catch (error) {
         console.error("Error in AI command:", error);
         await message.react("❌");
