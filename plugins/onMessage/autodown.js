@@ -1,8 +1,10 @@
 import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
-import tempy from 'tempy';
+import { fileURLToPath } from 'url';
 import getFbVideoInfo from 'priyansh-fb-downloader';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const langData = {
     "en_US": {
@@ -25,6 +27,14 @@ const langData = {
     }
 };
 
+function getTempFilePath(extension = 'mp4') {
+    const tempDir = path.join(__dirname, 'tmp');
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+    }
+    return path.join(tempDir, `download_${Date.now()}.${extension}`);
+}
+
 const urlPatterns = {
     facebook: /https?:\/\/(www\.)?facebook\.com\/(share|reel)\/[^\s]+/gi,
     tiktok: /https?:\/\/((?:vt|vm|www)\.)?tiktok\.com\/[^\s]+/gi,
@@ -32,31 +42,14 @@ const urlPatterns = {
     youtube: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)(?:\S+)?/g
 };
 
-const extractYoutubeVideoId = (url) => {
-    const patterns = [
-        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/i,
-        /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]+)/i,
-        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]+)/i,
-        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/i
-    ];
-
-    for (const pattern of patterns) {
-        const match = url.match(pattern);
-        if (match) return match[1];
-    }
-    return null;
-};
-
-async function downloadAndSendVideo(videoUrl, message, getLang) {
-    const tempFilePath = tempy.file({ extension: 'mp4' });
+async function downloadFile(url, extension = 'mp4') {
+    const tempFilePath = getTempFilePath(extension);
     const writer = fs.createWriteStream(tempFilePath);
 
     try {
-        await message.reply(getLang("success.downloading"));
-
         const response = await axios({
             method: 'GET',
-            url: videoUrl,
+            url: url,
             responseType: 'stream'
         });
 
@@ -67,19 +60,39 @@ async function downloadAndSendVideo(videoUrl, message, getLang) {
             writer.on('error', reject);
         });
 
-        const attachment = fs.createReadStream(tempFilePath);
+        return {
+            stream: fs.createReadStream(tempFilePath),
+            path: tempFilePath
+        };
+    } catch (error) {
+        if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+        }
+        throw error;
+    }
+}
+
+async function downloadAndSendVideo(videoUrl, message, getLang) {
+    let tempFilePath = null;
+
+    try {
+        await message.reply(getLang("success.downloading"));
+        const { stream, path } = await downloadFile(videoUrl);
+        tempFilePath = path;
+
         await message.reply({
             body: getLang("success.downloaded"),
-            attachment: attachment
+            attachment: stream
         });
     } catch (error) {
         throw new Error(getLang("error.download", { error: error.message }));
     } finally {
-        if (fs.existsSync(tempFilePath)) {
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
             fs.unlinkSync(tempFilePath);
         }
     }
 }
+
 
 async function handleFacebookVideo(url, message, getLang) {
     try {
@@ -170,7 +183,8 @@ async function handleYoutubeVideo(url, message, getLang) {
     } catch (error) {
         throw new Error(getLang("error.youtube", { error: error.message }));
     }
-}
+                 }
+                        
 
 async function onCall({ message, getLang }) {
     if (!message.body) return;
