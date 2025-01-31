@@ -9,7 +9,7 @@ function onCall({ message, getLang, chilli }) {
     const validTriggers = ["prefix", "Prefix"];
     const prefix = chilli?.thread?.data?.prefix || global.config.PREFIX;
 
-    if (message.body === kupal && message.senderID !== global.botID) {
+    if (message.body === prefix && message.senderID !== global.botID) {
         message.reply(getLang("prefix.noCommand", { prefix }));
     } else if (validTriggers.includes(message.body) && message.senderID !== global.botID) {
         message.reply(getLang("prefix.get", { prefix }));
