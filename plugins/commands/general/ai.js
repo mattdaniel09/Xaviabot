@@ -1,81 +1,94 @@
 import axios from "axios";
-import { join } from "path";
 import { createWriteStream } from "fs";
-import apiConfig from '../api/api.js';
+import { join } from "path";
 
 const config = {
     name: "ai",
-    aliases: ["chat", "generate"],
-    description: "Interact with GPT-4 API to generate text or images based on prompts.",
-    usage: "[prompt]",
-    cooldown: 3,
+    aliases: ["bot"],
+    description: "Talk with AI or generate images",
+    usage: "[question] or imagine [prompt]",
+    cooldown: 5,
     permissions: [0],
-    credits: "chilli"
+    credits: "Your Name"
 };
 
 const langData = {
     "en_US": {
-        "missingPrompt": (prefix) => `Please provide a question or prompt for the AI.\n\nEx: ${prefix}ai what is love`,
-        "error": "An error occurred while processing your request.",
+        "invalidInput": (prefix) => `Please provide a question or use 'imagine' for image generation.\n\nExamples:\n${prefix}ai what is love\n${prefix}ai imagine beautiful sunset`,
+        "processingError": "An error occurred. Please try again.",
+        "imageGenerated": "🎨 Here's your generated image:",
+        "processingImage": "🎨 Generating your image..."
     }
 };
 
 async function onCall({ message, args, getLang, data }) {
     const prefix = data?.thread?.data?.prefix || global.config.PREFIX;
+    
+    if (!args[0]) return message.reply(getLang("invalidInput")(prefix));
 
-    if (args.length === 0) return message.reply(getLang("missingPrompt")(prefix));
+    const uid = message.senderID;
 
-    const prompt = args.join(" ");
-    await message.react("🔍");
-
-    try {
-        const response = await axios.get(`${apiConfig.jonel}/api/gpt4o-v2?prompt=${encodeURIComponent(prompt)}`);
-
-        if (!response.data || !response.data.response) {
-            await message.react("❌");
-            return message.reply(getLang("error"));
-        }
-
-        const aiResponse = response.data.response;
-
-        if (aiResponse.startsWith("TOOL_CALL: generateImage")) {
-            const imageUrlMatch = aiResponse.match(/\((https:\/\/.*?\.png.*?)\)/);
-
-            if (imageUrlMatch && imageUrlMatch[1]) {
-                const imageUrl = imageUrlMatch[1];
-                const cachePath = join(global.cachePath, `generated_${Date.now()}.png`);
-                const writer = createWriteStream(cachePath);
-
-                const imageResponse = await axios.get(imageUrl, { responseType: "stream" });
-                imageResponse.data.pipe(writer);
-
-                writer.on("finish", async () => {
-                    await message.react("✅");
-                    await message.reply({
-                        body: "Here is the generated image:",
-                        attachment: global.reader(cachePath)
-                    });
-                });
-
-                writer.on("error", async () => {
-                    await message.react("❌");
-                    message.reply(getLang("error"));
-                });
-            }
-        } else {
-            const userInfo = await global.controllers.Users.getInfo(message.senderID);
-            const senderName = userInfo?.name || "User";
-
-            await message.react("✅");
-            await message.reply({
-                body: aiResponse + `\n\n👤 𝘈𝘴𝘬𝘦𝘥 𝘣𝘺: ${senderName}`,
-                mentions: [{ tag: senderName, id: message.senderID }]
+    if (args[0].toLowerCase() === "imagine") {
+        if (!args[1]) return message.reply(getLang("invalidInput")(prefix));
+        
+        const prompt = args.slice(1).join(" ");
+        await message.reply(getLang("processingImage"));
+        
+        try {
+            const response = await axios.get(encodeURI(`https://api.shizuki.linkpc.net/api/fluxschnell?prompt=${prompt}`), {
+                responseType: "arraybuffer"
             });
+
+            const imagePath = join(global.cachePath, `img_${Date.now()}.png`);
+            const writer = createWriteStream(imagePath);
+            
+            writer.write(Buffer.from(response.data, "binary"));
+            writer.end();
+
+            return new Promise((resolve, reject) => {
+                writer.on("finish", async () => {
+                    try {
+                        const userInfo = await global.controllers.Users.getInfo(message.senderID);
+                        const userName = userInfo?.name || "User";
+
+                        await message.reply({
+                            body: `${getLang("imageGenerated")}\n\n🎯 Prompt: ${prompt}\n👤 By: ${userName}`,
+                            attachment: global.reader(imagePath),
+                            mentions: [{
+                                tag: userName,
+                                id: message.senderID
+                            }]
+                        });
+                        resolve();
+                    } catch (err) {
+                        reject(err);
+                    }
+                });
+                writer.on("error", reject);
+            });
+        } catch (error) {
+            return message.reply(getLang("processingError"));
         }
-    } catch (error) {
-        console.error("Error in AI command:", error);
-        await message.react("❌");
-        message.reply(getLang("error"));
+    } else {
+        const prompt = args.join(" ");
+        try {
+            const response = await axios.get(`https://api.shizuki.linkpc.net/api/groq?ask=${encodeURIComponent(prompt)}&uid=${uid}`);
+            
+            if (!response.data) throw new Error("Empty response");
+
+            const userInfo = await global.controllers.Users.getInfo(message.senderID);
+            const userName = userInfo?.name || "User";
+
+            return message.reply({
+                body: `${response.data.response || response.data}\n\n👤 Asked by: ${userName}`,
+                mentions: [{
+                    tag: userName,
+                    id: message.senderID
+                }]
+            });
+        } catch (error) {
+            return message.reply(getLang("processingError"));
+        }
     }
 }
 
