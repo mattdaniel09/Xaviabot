@@ -9,7 +9,7 @@ const config = {
     usage: "[question] or imagine [prompt]",
     cooldown: 5,
     permissions: [0],
-    credits: "Your Name"
+    credits: "Mark"
 };
 
 const langData = {
