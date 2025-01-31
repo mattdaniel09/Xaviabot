@@ -1,11 +1,14 @@
 import axios from 'axios';
 import fs from 'fs-extra';
-import tempy from 'tempy';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const langData = {
     "en_US": {
         "shoti.downloading": "⏳ Downloading shoti video...",
-        "shoti.success": "📹 Video from @{username}\n💭 Caption: {title}",
+        "shoti.success": "@{username}\n💭 Caption: {title}",
         "shoti.error.download": "⚠️ Failed to download video: {error}",
         "shoti.error.api": "⚠️ Failed to fetch video: {error}",
         "shoti.error.general": "⚠️ An error occurred: {error}"
@@ -26,11 +29,19 @@ const config = {
     description: "Get random Hot Girl TikTok video",
     usage: "<prefix>shoti",
     cooldown: 15,
-    credits: "Mark"
+    credits: "Xavia"
 };
 
+function getTempFilePath() {
+    const tempDir = path.join(__dirname, 'tmp');
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+    }
+    return path.join(tempDir, `shoti_${Date.now()}.mp4`);
+}
+
 async function downloadVideo(url, message, getLang) {
-    const tempFilePath = tempy.file({ extension: 'mp4' });
+    const tempFilePath = getTempFilePath();
     const writer = fs.createWriteStream(tempFilePath);
 
     try {
@@ -47,20 +58,21 @@ async function downloadVideo(url, message, getLang) {
             writer.on('error', reject);
         });
 
-        return fs.createReadStream(tempFilePath);
+        return {
+            stream: fs.createReadStream(tempFilePath),
+            path: tempFilePath
+        };
     } catch (error) {
+        if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+        }
         throw new Error(getLang("shoti.error.download", { error: error.message }));
-    } finally {
-        // Schedule cleanup of temp file after sending
-        setTimeout(() => {
-            if (fs.existsSync(tempFilePath)) {
-                fs.unlinkSync(tempFilePath);
-            }
-        }, 10000);
     }
 }
 
 async function onCall({ message, getLang }) {
+    let tempFilePath = null;
+    
     try {
         await message.reply(getLang("shoti.downloading"));
 
@@ -71,14 +83,20 @@ async function onCall({ message, getLang }) {
         }
 
         const { title, username, play } = response.data;
-        const videoStream = await downloadVideo(play, message, getLang);
+        const { stream, path } = await downloadVideo(play, message, getLang);
+        tempFilePath = path;
 
-        return message.reply({
+        await message.reply({
             body: getLang("shoti.success", { username, title }),
-            attachment: videoStream
+            attachment: stream
         });
     } catch (error) {
-        return message.reply(getLang("shoti.error.general", { error: error.message }));
+        await message.reply(getLang("shoti.error.general", { error: error.message }));
+    } finally {
+        // Cleanup temp file
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+        }
     }
 }
 
