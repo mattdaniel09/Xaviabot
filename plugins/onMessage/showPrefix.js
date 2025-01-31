@@ -1,18 +1,18 @@
 const langData = {
     "en_US": {
-        "kupal.get": "🌐 | The bot's current prefix is [ {kupal} ].",
-        "kupal.noCommand": "❗ | No command detected. Type [ {kupal}help ] to see all available commands."
+        "prefix.get": "The bot's current prefix is [ {prefix} ].",
+        "prefix.noCommand": "No command detected. Type {prefix}help  to see all available commands."
     }
 };
 
 function onCall({ message, getLang, chilli }) {
     const validTriggers = ["prefix", "Prefix"];
-    const kupal = chilli?.thread?.data?.prefix || global.config.PREFIX;
+    const prefix = chilli?.thread?.data?.prefix || global.config.PREFIX;
 
     if (message.body === kupal && message.senderID !== global.botID) {
-        message.reply(getLang("kupal.noCommand", { kupal }));
+        message.reply(getLang("prefix.noCommand", { prefix }));
     } else if (validTriggers.includes(message.body) && message.senderID !== global.botID) {
-        message.reply(getLang("kupal.get", { kupal }));
+        message.reply(getLang("prefix.get", { prefix }));
     }
 
     return;
