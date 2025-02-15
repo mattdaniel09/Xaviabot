@@ -3,7 +3,7 @@ import { writeFileSync, readFileSync } from "fs";
 import { resolve as resolvePath } from "path";
 import crypto from "crypto";
 import { execSync } from "child_process";
-import login from "skibidi-fca-v2";
+import login from "daiki-fca";
 import replitDB from "@replit/database";
 import util from 'util';
 
