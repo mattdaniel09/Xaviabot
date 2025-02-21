@@ -28,7 +28,7 @@
   "dependencies": {
     "tempy": "latest",
     "priyansh-fb-downloader": "latest",
-    "skibidi-fca-v2": "latest",
+    "daiki-fca": "latest",
     "@replit/database": "^2.0.2",
     "@xaviabot/fca-unofficial": "^1.3.25",
     "axios": "^0.27.2",
